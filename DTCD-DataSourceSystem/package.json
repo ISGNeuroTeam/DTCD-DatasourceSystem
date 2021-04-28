@@ -1,7 +1,7 @@
 {
   "name": "dtcd-datasource-system",
   "version": "0.1.0",
-  "description": "DTCD datasource system plugin",
+  "description": "DTCD DataSource system plugin",
   "private": true,
   "homepage": "https://github.com/ISGNeuroTeam/DTCD-DatasourceSystem",
   "scripts": {
@@ -16,10 +16,8 @@
     "@babel/preset-env": "7.13.15",
     "@rollup/plugin-alias": "3.1.2",
     "@rollup/plugin-babel": "5.3.0",
-    "@rollup/plugin-node-resolve": "11.2.1",
     "babel-jest": "26.6.3",
     "jest": "26.6.3",
-    "rollup": "2.45.2",
-    "rollup-plugin-livereload": "2.0.0"
+    "rollup": "2.45.2"
   }
 }
