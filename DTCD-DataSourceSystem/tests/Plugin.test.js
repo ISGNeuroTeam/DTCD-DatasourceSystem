@@ -1,21 +1,20 @@
-import { DatasourceSystem } from '@/Plugin';
-import { SystemPlugin } from 'SDK';
-import { initApp } from 'utils/initApp';
+import {DataSourceSystem} from '@/Plugin';
+import {SystemPlugin} from 'SDK';
+import {initApp} from 'utils/initApp';
 
 initApp();
 
-test('DatasourceSystem extends SystemPlugin class', () => {
-  const storage = new DatasourceSystem('guid1');
+test('DataSourceSystem extends SystemPlugin class', () => {
+  const storage = new DataSourceSystem('guid1');
   expect(storage).toBeInstanceOf(SystemPlugin);
 });
 
-describe('Check DatasourceSystem static method getRegistrationMeta():', () => {
-
-  const pluginMeta = DatasourceSystem.getRegistrationMeta();
+describe('Check DataSourceSystem static method getRegistrationMeta():', () => {
+  const pluginMeta = DataSourceSystem.getRegistrationMeta();
 
   test('Method exists', () => {
-    expect(DatasourceSystem.getRegistrationMeta).toBeDefined();
-    expect(typeof DatasourceSystem.getRegistrationMeta).toEqual('function');
+    expect(DataSourceSystem.getRegistrationMeta).toBeDefined();
+    expect(typeof DataSourceSystem.getRegistrationMeta).toEqual('function');
   });
 
   test('Method returns a non-empty object', () => {
@@ -26,8 +25,7 @@ describe('Check DatasourceSystem static method getRegistrationMeta():', () => {
   });
 
   describe('Check returned meta object:', () => {
-
-    const { type, name, title, version, priority } = pluginMeta;
+    const {type, name, title, version, priority} = pluginMeta;
 
     test('Property "type" is exists and is equal to "core" string', () => {
       expect(type).toBeDefined();
@@ -53,7 +51,5 @@ describe('Check DatasourceSystem static method getRegistrationMeta():', () => {
       expect(priority).toBeDefined();
       expect(typeof priority).toEqual('number');
     });
-
-  })
-
+  });
 });
