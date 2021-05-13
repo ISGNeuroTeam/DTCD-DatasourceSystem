@@ -1,5 +1,9 @@
-import {SystemPlugin, LogSystemAdapter, EventSystemAdapter} from './../../DTCD-SDK/index';
-import {InProgressError} from './utils/InProgressError';
+import {
+  SystemPlugin,
+  LogSystemAdapter,
+  EventSystemAdapter,
+  InProgressError,
+} from './../../DTCD-SDK/index';
 import pluginMeta from './Plugin.Meta';
 
 export class DataSourceSystem extends SystemPlugin {
