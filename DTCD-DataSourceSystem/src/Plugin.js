@@ -45,7 +45,7 @@ export class DataSourceSystem extends SystemPlugin {
         throw new Error('DataSource type must be a string');
       }
 
-      const dataSourcePlugin = this.#extensions.find(
+      const {plugin: dataSourcePlugin = null} = this.#extensions.find(
         ext => ext.plugin.getExtensionInfo().type === type
       );
 
@@ -53,47 +53,58 @@ export class DataSourceSystem extends SystemPlugin {
         throw new Error(`Cannot find "${type}" DataSource`);
       }
 
-      const dataSourceInstance = this.installExtension('DataSourceSystem', dataSourcePlugin.name, {
+      const dataSourceInstance = new dataSourcePlugin(this.#guid, {
         tws,
         twf,
         original_otl: search,
         cache_ttl: cacheTime,
       });
+
       const isInited = await dataSourceInstance.init();
       if (!isInited) throw new Error("Job isn't created");
 
+      const asyncMethodDecorator = (
+        targetFunc,
+        dataSourceInstance,
+        eventSystem,
+        dataSourceSystemGUID
+      ) => {
+        return function syncFunction(...args) {
+          if (this.status === 'complete') {
+            return this.value;
+          } else if (this.status === 'inProgress') {
+            throw new InProgressError(`${targetFunc.name} method with status "inProgress"`);
+          }
+          this.status = 'inProgress';
+          targetFunc
+            .apply(dataSourceInstance, args)
+            .then(res => {
+              this.value = res;
+              this.status = 'complete';
+              eventSystem.createAndPublish(dataSourceSystemGUID, 'DataSourceMethodFinished');
+            })
+            .catch(err => {
+              throw new Error(err);
+            });
+          throw new InProgressError(`${targetFunc.name} method with status "inProgress"`);
+        };
+      };
+
       // Override methods with returns Pomises for eventsystem callbacks
-      for (let methodName of ['toDataset']) {
-        // Method is Object type property, so "this" have value property
-        dataSourceInstance[methodName] = new Proxy(dataSourceInstance[methodName], {
-          apply: (target, thisArg, args) => {
-            let result;
-            if (!target.constructor.name === 'AsyncFunction') {
-              target.status = 'complete';
-              result = target.call(thisArg, ...args);
-            } else {
-              if (target.status === 'complete') {
-                return target.value;
-              } else if (target.status === 'inProgress') {
-                throw new InProgressError(`${target.name} method with status "inProgress"`);
-              }
-              target.status = 'inProgress';
-              result = target
-                .call(thisArg, ...args)
-                .then(res => {
-                  target.value = res;
-                  this.#eventSystem.createAndPublish(this.#guid, 'DataSourceMethodFinished');
-                  target.status = 'complete';
-                })
-                .catch(err => {
-                  throw new Error(err);
-                });
-              throw new InProgressError(`${target.name} method with status "inProgress"`);
-            }
-            return result;
-          },
-        });
+      for (let methodName of ['getRows']) {
+        const func = dataSourceInstance[methodName];
+        if (typeof func === 'function') {
+          if (func.constructor.name === 'AsyncFunction') {
+            dataSourceInstance[methodName] = asyncMethodDecorator(
+              func,
+              dataSourceInstance,
+              this.#eventSystem,
+              this.#guid
+            );
+          }
+        }
       }
+
       return dataSourceInstance;
     } catch (err) {
       this.#logSystem.debug(`${this.#systemName} createDataSource() error: ${err.stack}`);
