@@ -31,14 +31,14 @@ export class DataSourceSystem extends SystemPlugin {
     this.#logSystem.debug(`DataSourceSystem start create createDataSource`);
     try {
       const {type, name} = initData;
-      if (typeof type !== 'string' && typeof name !== 'string') {
+      if (typeof type !== 'string' || typeof name !== 'string') {
         this.#logSystem.error(
           `DataSourceSystem.createDataSource invoked with not String params: type - "${type}", name - "${name}"`
         );
-        throw new Error('Initial object should have "type" and "name" properties');
+        throw new Error('Initial object should have "type" and "name" string properties');
       }
       this.#logSystem.debug(
-        `DataSourceSystem start create createDataSource with type "${type}" and name "${name}"`
+        `Started create of DataSource with type - "${type}" and name - "${name}"`
       );
 
       const {plugin: ExternalSource} = this.#extensions.find(
@@ -64,41 +64,49 @@ export class DataSourceSystem extends SystemPlugin {
       const externalSourceIterator = externalSource[Symbol.iterator]();
       this.#logSystem.debug(`get ExternalSource iterator`);
 
-      this.#storageSystem.session.addRecord(name);
+      this.#storageSystem.session.addRecord(name, []);
       this.#logSystem.debug(`Added record to StorageSystem for ExternalSource`);
       const storageRecord = this.#storageSystem.session.getRecord(name);
       this.#logSystem.debug(`Get record from StorageSystem for ExternalSource`);
 
-      dataSourceIterator = {
+      const baseDataSource = new DataSource(externalSourceIterator);
+      this.#logSystem.debug(`Inited DataSource instance based on ExternalSource`);
+
+      baseDataSource[Symbol.iterator] = () => ({
         iterator: externalSourceIterator,
         currentIndex: 0,
         storageRecord,
+        logSystem: this.#logSystem,
         next() {
           if (this.currentIndex < this.storageRecord.length) {
-            this.#logSystem.debug(`Getting record by dataSourceIterator from StorageSystem`);
+            this.logSystem.debug(`Getting record by dataSourceIterator from StorageSystem`);
             const result = {done: false, value: this.storageRecord[this.currentIndex]};
             this.currentIndex += 1;
             return result;
           } else {
-            this.#logSystem.debug(`Getting record by dataSourceIterator from ExternalDataSource`);
+            this.logSystem.debug(`Getting record by dataSourceIterator from ExternalDataSource`);
             const {value, done} = this.iterator.next();
             if (typeof value !== 'undefined') {
-              this.#logSystem.debug(`Value recieved from ExternalDataSource`);
+              this.logSystem.debug(`Value recieved from ExternalDataSource`);
               this.storageRecord.push(value);
+              this.logSystem.debug(`Pushed new record from ExternalDataSource into StorageSystem `);
               this.currentIndex += 1;
             }
             return {value, done};
           }
         },
-      };
-      this.#logSystem.debug(`Inited dataSourceIterator based on externalSourceIterator.`);
+      });
+      this.#logSystem.debug(
+        `Inited baseDataSource [Symbol.iterator] method based on externalSourceIterator.`
+      );
 
-      dataSourceIterator.next();
+      const baseDataSourceIterator = baseDataSource[Symbol.iterator]();
+      this.#logSystem.debug(`Received aseDataSourceIterator.`);
 
-      const dataSourceInstance = new DataSource(dataSourceIterator);
-      this.#logSystem.debug(`Instance of DataSource created.`);
+      baseDataSourceIterator.next();
+      this.#logSystem.debug(`Received first record from dataSourceIterator`);
 
-      return dataSourceInstance;
+      return baseDataSource;
     } catch (err) {
       this.#logSystem.error(err);
       throw new Error(err);
