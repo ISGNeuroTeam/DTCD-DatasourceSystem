@@ -3,22 +3,23 @@ import {
   LogSystemAdapter,
   EventSystemAdapter,
   InProgressError,
-} from './../../DTCD-SDK/index';
-import pluginMeta from './Plugin.Meta';
+} from './../../DTCD-SDK';
+import {pluginMeta} from './../package.json';
 
 export class DataSourceSystem extends SystemPlugin {
   #guid;
   #logSystem;
-  #systemName;
   #eventSystem;
+
+  static getRegistrationMeta() {
+    return pluginMeta;
+  }
 
   constructor(guid) {
     super();
     this.#guid = guid;
-    this.#systemName = `${pluginMeta.name}[${guid}]`;
     this.#logSystem = new LogSystemAdapter(guid, pluginMeta.name);
     this.#eventSystem = new EventSystemAdapter();
-    this.#logSystem.info(`${this.#systemName} initialization complete`);
   }
 
   get #extensions() {
@@ -32,17 +33,12 @@ export class DataSourceSystem extends SystemPlugin {
 
   async createDataSource(initData = null) {
     if (initData === null) {
-      this.#logSystem.warn(
-        `Warning ${this.#systemName}: createDataSource called without initial object`
-      );
-      throw new Error(
-        `Warning ${this.#systemName}: createDataSource called without initial object`
-      );
+      this.#logSystem.warn();
+      throw new Error();
     }
 
     try {
       const {type} = initData;
-      this.#logSystem.debug(`${this.#systemName} createDataSource(${type})`);
       if (typeof type === undefined) {
         throw new Error('DataSource type must be defined');
       } else if (typeof type !== 'string') {
@@ -57,23 +53,14 @@ export class DataSourceSystem extends SystemPlugin {
         throw new Error(`Cannot find "${type}" DataSource`);
       }
 
-      const dataSourceInstance = this.installExtension(
-        'DataSourceSystem',
-        dataSourcePlugin.name,
-        initData
-      );
+      const {plugin: dataSourceExtension} = this.getExtensions('DataSourceSystem')[0];
+      const dataSourceInstance = new dataSourceExtension(initData);
 
       const isInited = await dataSourceInstance.init();
       if (!isInited) throw new Error("Job isn't created");
       return dataSourceInstance;
     } catch (err) {
-      this.#logSystem.debug(`${this.#systemName} createDataSource() error: ${err.stack}`);
-      this.#logSystem.info(`${this.#systemName} DataSource creation error: ${err.message}`);
       throw err;
     }
-  }
-
-  static getRegistrationMeta() {
-    return pluginMeta;
   }
 }
