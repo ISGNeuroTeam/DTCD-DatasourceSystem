@@ -1,15 +1,12 @@
-import {
-  SystemPlugin,
-  LogSystemAdapter,
-  EventSystemAdapter,
-  InProgressError,
-} from './../../DTCD-SDK';
+import {SystemPlugin, LogSystemAdapter, StorageSystemAdapter} from './../../DTCD-SDK';
+import {DataSource} from './libs/DataSource';
 import {pluginMeta} from './../package.json';
 
 export class DataSourceSystem extends SystemPlugin {
   #guid;
+  #extensions;
   #logSystem;
-  #eventSystem;
+  #storageSystem;
 
   static getRegistrationMeta() {
     return pluginMeta;
@@ -19,48 +16,92 @@ export class DataSourceSystem extends SystemPlugin {
     super();
     this.#guid = guid;
     this.#logSystem = new LogSystemAdapter(guid, pluginMeta.name);
-    this.#eventSystem = new EventSystemAdapter();
-  }
+    this.#storageSystem = new StorageSystemAdapter();
 
-  get #extensions() {
-    const extension = this.getExtensions(pluginMeta.name);
-    return Array.isArray(extension) ? extension : [];
+    this.#extensions = this.getExtensions(pluginMeta.name);
+    this.#logSystem.debug(`DataSourceSystem instance created!`);
   }
 
   get dataSourceTypes() {
+    this.#logSystem.debug(`DataSourceSystem get dataSourceTypes`);
     return this.#extensions.map(ext => ext.plugin.getExtensionInfo().type);
   }
 
   async createDataSource(initData = null) {
-    if (initData === null) {
-      this.#logSystem.warn();
-      throw new Error();
-    }
-
+    this.#logSystem.debug(`DataSourceSystem start create createDataSource`);
     try {
-      const {type} = initData;
-      if (typeof type === undefined) {
-        throw new Error('DataSource type must be defined');
-      } else if (typeof type !== 'string') {
-        throw new Error('DataSource type must be a string');
+      const {type, name} = initData;
+      if (typeof type !== 'string' && typeof name !== 'string') {
+        this.#logSystem.error(
+          `DataSourceSystem.createDataSource invoked with not String params: type - "${type}", name - "${name}"`
+        );
+        throw new Error('Initial object should have "type" and "name" properties');
       }
+      this.#logSystem.debug(
+        `DataSourceSystem start create createDataSource with type "${type}" and name "${name}"`
+      );
 
-      const dataSourcePlugin = this.#extensions.find(
+      const {plugin: ExternalSource} = this.#extensions.find(
         ext => ext.plugin.getExtensionInfo().type === type
       );
 
-      if (!dataSourcePlugin) {
+      if (!ExternalSource) {
+        this.#logSystem.error(`Couldn't find extension with type - "${type}"`);
         throw new Error(`Cannot find "${type}" DataSource`);
       }
+      this.#logSystem.debug(`Found extension plugin by type`);
 
-      const {plugin: dataSourceExtension} = this.getExtensions('DataSourceSystem')[0];
-      const dataSourceInstance = new dataSourceExtension(initData);
+      const externalSource = new ExternalSource(initData);
+      this.#logSystem.debug(`ExternalSource instance created`);
 
-      const isInited = await dataSourceInstance.init();
-      if (!isInited) throw new Error("Job isn't created");
+      const isInited = await externalSource.init();
+      if (!isInited) {
+        this.#logSystem.error(`Couldn't init ExternalSource instance`);
+        throw new Error("Job isn't created");
+      }
+      this.#logSystem.debug(`ExternalSource instance inited`);
+
+      const externalSourceIterator = externalSource[Symbol.iterator]();
+      this.#logSystem.debug(`get ExternalSource iterator`);
+
+      this.#storageSystem.session.addRecord(name);
+      this.#logSystem.debug(`Added record to StorageSystem for ExternalSource`);
+      const storageRecord = this.#storageSystem.session.getRecord(name);
+      this.#logSystem.debug(`Get record from StorageSystem for ExternalSource`);
+
+      dataSourceIterator = {
+        iterator: externalSourceIterator,
+        currentIndex: 0,
+        storageRecord,
+        next() {
+          if (this.currentIndex < this.storageRecord.length) {
+            this.#logSystem.debug(`Getting record by dataSourceIterator from StorageSystem`);
+            const result = {done: false, value: this.storageRecord[this.currentIndex]};
+            this.currentIndex += 1;
+            return result;
+          } else {
+            this.#logSystem.debug(`Getting record by dataSourceIterator from ExternalDataSource`);
+            const {value, done} = this.iterator.next();
+            if (typeof value !== 'undefined') {
+              this.#logSystem.debug(`Value recieved from ExternalDataSource`);
+              this.storageRecord.push(value);
+              this.currentIndex += 1;
+            }
+            return {value, done};
+          }
+        },
+      };
+      this.#logSystem.debug(`Inited dataSourceIterator based on externalSourceIterator.`);
+
+      dataSourceIterator.next();
+
+      const dataSourceInstance = new DataSource(dataSourceIterator);
+      this.#logSystem.debug(`Instance of DataSource created.`);
+
       return dataSourceInstance;
     } catch (err) {
-      throw err;
+      this.#logSystem.error(err);
+      throw new Error(err);
     }
   }
 }
