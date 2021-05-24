@@ -27,7 +27,7 @@ export class DataSourceSystem extends SystemPlugin {
     return this.#extensions.map(ext => ext.plugin.getExtensionInfo().type);
   }
 
-  async createDataSource(initData = null, primitiveID, propName) {
+  async createDataSource(initData) {
     this.#logSystem.debug(`DataSourceSystem start create createDataSource`);
     try {
       const {type, name} = initData;
@@ -63,14 +63,11 @@ export class DataSourceSystem extends SystemPlugin {
 
       const externalSourceIterator = externalSource[Symbol.asyncIterator]();
       this.#logSystem.debug(`get ExternalSource iterator`);
-
-      if (this.#storageSystem.session.hasRecord(name)) {
-        this.#storageSystem.session.putRecord(name, []);
-      } else {
+      if (!this.#storageSystem.session.hasRecord(name)) {
         this.#storageSystem.session.addRecord(name, []);
-      }
+        this.#logSystem.debug(`Added record to StorageSystem for ExternalSource`);
+      } else this.#storageSystem.session.putRecord(name, []);
 
-      this.#logSystem.debug(`Added record to StorageSystem for ExternalSource`);
       const storageRecord = this.#storageSystem.session.getRecord(name);
       this.#logSystem.debug(`Get record from StorageSystem for ExternalSource`);
 
@@ -107,8 +104,8 @@ export class DataSourceSystem extends SystemPlugin {
 
       const baseDataSourceIterator = baseDataSource[Symbol.asyncIterator]();
       this.#logSystem.debug(`Received aseDataSourceIterator.`);
+      baseDataSourceIterator.next();
 
-      await baseDataSourceIterator.next();
       this.#logSystem.debug(`Received first record from dataSourceIterator`);
 
       return baseDataSource;

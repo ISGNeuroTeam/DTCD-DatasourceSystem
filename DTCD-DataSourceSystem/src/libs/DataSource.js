@@ -39,12 +39,13 @@ export class DataSource {
   }
 
   getRecords(number) {
-    let result = [];
-    if (typeof number === 'undefined') {
-      result = Array.from(this);
-    } else {
-      for (let i = 0; i < number; i++) {
-        result.push(this.next());
+    let count = 0;
+    const result = [];
+    for (let record of this) {
+      if (typeof number !== 'undefined' && count >= number) break;
+      else {
+        result.push(record);
+        count++;
       }
     }
     return Promise.all(result).then(results => {
@@ -54,5 +55,9 @@ export class DataSource {
 
   toString() {
     return 'DataSource';
+  }
+
+  toString() {
+    return `DataSource object`;
   }
 }
