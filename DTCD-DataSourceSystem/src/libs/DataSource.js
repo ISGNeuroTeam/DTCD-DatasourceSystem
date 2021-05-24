@@ -39,12 +39,20 @@ export class DataSource {
   }
 
   getRecords(number) {
-    const result = [];
-    for (let i = 0; i < number; i++) {
-      result.push(this.next());
+    let result = [];
+    if (typeof number === 'undefined') {
+      result = Array.from(this);
+    } else {
+      for (let i = 0; i < number; i++) {
+        result.push(this.next());
+      }
     }
     return Promise.all(result).then(results => {
       return results.map(({value}) => value);
     });
+  }
+
+  toString() {
+    return 'DataSource';
   }
 }
