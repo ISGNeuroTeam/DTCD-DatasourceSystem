@@ -6,13 +6,13 @@ export class DataSource {
     this.#iterator = iterator;
     this.#filterObject = filterObject ? filterObject : {};
   }
-  [Symbol.iterator]() {
+  [Symbol.asyncIterator]() {
     return this;
   }
 
-  next() {
+  async next() {
     while (true) {
-      const {value, done} = this.#iterator.next();
+      const {value, done} = await this.#iterator.next();
       let filterPassed = true;
       if (typeof value === 'undefined' || done) {
         return {value, done};
@@ -39,15 +39,10 @@ export class DataSource {
   }
 
   getRecords(number) {
-    let count = 0;
     const result = [];
-    for (let record of this) {
-      if (count >= number) break;
-      else {
-        result.push(record);
-        count++;
-      }
+    for (let i = 0; i < number; i++) {
+      result.push(this.next());
     }
-    return result;
+    return Promise.all(result);
   }
 }

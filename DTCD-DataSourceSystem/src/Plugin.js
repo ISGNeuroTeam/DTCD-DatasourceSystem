@@ -61,7 +61,7 @@ export class DataSourceSystem extends SystemPlugin {
       }
       this.#logSystem.debug(`ExternalSource instance inited`);
 
-      const externalSourceIterator = externalSource[Symbol.iterator]();
+      const externalSourceIterator = externalSource[Symbol.asyncIterator]();
       this.#logSystem.debug(`get ExternalSource iterator`);
 
       this.#storageSystem.session.addRecord(name, []);
@@ -72,12 +72,12 @@ export class DataSourceSystem extends SystemPlugin {
       const baseDataSource = new DataSource(externalSourceIterator);
       this.#logSystem.debug(`Inited DataSource instance based on ExternalSource`);
 
-      baseDataSource[Symbol.iterator] = () => ({
+      baseDataSource[Symbol.asyncIterator] = () => ({
         iterator: externalSourceIterator,
         currentIndex: 0,
         storageRecord,
         logSystem: this.#logSystem,
-        next() {
+        async next() {
           if (this.currentIndex < this.storageRecord.length) {
             this.logSystem.debug(`Getting record by dataSourceIterator from StorageSystem`);
             const result = {done: false, value: this.storageRecord[this.currentIndex]};
@@ -85,7 +85,7 @@ export class DataSourceSystem extends SystemPlugin {
             return result;
           } else {
             this.logSystem.debug(`Getting record by dataSourceIterator from ExternalDataSource`);
-            const {value, done} = this.iterator.next();
+            const {value, done} = await this.iterator.next();
             if (typeof value !== 'undefined') {
               this.logSystem.debug(`Value recieved from ExternalDataSource`);
               this.storageRecord.push(value);
@@ -97,13 +97,13 @@ export class DataSourceSystem extends SystemPlugin {
         },
       });
       this.#logSystem.debug(
-        `Inited baseDataSource [Symbol.iterator] method based on externalSourceIterator.`
+        `Inited baseDataSource [Symbol.asyncIterator] method based on externalSourceIterator.`
       );
 
-      const baseDataSourceIterator = baseDataSource[Symbol.iterator]();
+      const baseDataSourceIterator = baseDataSource[Symbol.asyncIterator]();
       this.#logSystem.debug(`Received aseDataSourceIterator.`);
 
-      baseDataSourceIterator.next();
+      await baseDataSourceIterator.next();
       this.#logSystem.debug(`Received first record from dataSourceIterator`);
 
       return baseDataSource;
