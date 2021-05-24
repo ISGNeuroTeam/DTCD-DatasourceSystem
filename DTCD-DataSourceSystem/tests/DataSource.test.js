@@ -30,9 +30,8 @@ describe('DataSource with Range function', () => {
     it('DataSource iterator 1', () => {
       const dataSource = new DataSource(Range(2, 8));
       let res = [{number: 1}];
-      for (let i = 2; i <= 8; i++) {
-        const {value} = dataSource.next();
-        res.push(value);
+      for (let rec of dataSource) {
+        res.push(rec);
       }
       expect(res).toEqual(expected);
     });
@@ -40,9 +39,8 @@ describe('DataSource with Range function', () => {
     it('DataSource iterator 2', () => {
       const dataSource = new DataSource(Range(3, 8));
       let res = [{number: 1}, {number: 2}];
-      for (let i = 3; i <= 8; i++) {
-        const {value} = dataSource.next();
-        res.push(value);
+      for (let rec of dataSource) {
+        res.push(rec);
       }
       expect(res).toEqual(expected);
     });
@@ -50,11 +48,8 @@ describe('DataSource with Range function', () => {
     it('DataSource iterator filter 1', () => {
       const dataSource = new DataSource(Range(3, 8), {number: 3});
       let res = [];
-      let iteratorFinished;
-      while (!iteratorFinished) {
-        const {value, done} = dataSource.next();
-        iteratorFinished = done;
-        if (value) res.push(value);
+      for (let rec of dataSource) {
+        res.push(rec);
       }
       expect(res).toEqual([expected[2]]);
     });
@@ -74,11 +69,8 @@ describe('DataSource with Range function', () => {
     it('DataSource iterator filter 1', () => {
       const dataSource = new DataSource(Range(1, 8, '%2*3')).filter({number: 3});
       let res = [];
-      let iteratorFinished;
-      while (!iteratorFinished) {
-        const {value, done} = dataSource.next();
-        iteratorFinished = done;
-        if (value) res.push(value);
+      for (let rec of dataSource) {
+        res.push(rec);
       }
       expect(res).toEqual(sample.filter(({number}) => number === 3));
     });

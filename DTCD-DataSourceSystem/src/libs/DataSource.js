@@ -42,12 +42,16 @@ export class DataSource {
     let count = 0;
     const result = [];
     for (let record of this) {
-      if (count >= number) break;
+      if (typeof number !== 'undefined' && count >= number) break;
       else {
         result.push(record);
         count++;
       }
     }
     return result;
+  }
+
+  toString() {
+    return `DataSource object`;
   }
 }
