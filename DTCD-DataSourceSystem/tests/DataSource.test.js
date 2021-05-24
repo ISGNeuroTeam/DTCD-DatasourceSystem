@@ -5,16 +5,17 @@ describe('DataSource with Range function', () => {
     return {
       current: from,
       last: to,
-      next() {
+      async next() {
         if (this.current <= this.last) {
           this.current++;
-          return {done: false, value: {number: eval(`${this.current}${operation}`)}};
+          return await {done: false, value: {number: eval(`${this.current}${operation}`)}};
         } else {
           return {done: true};
         }
       },
     };
   }
+
   describe('ExteranlSourceIterator is a Array of numbers 1-8', () => {
     const expected = [
       {number: 1},
@@ -27,34 +28,29 @@ describe('DataSource with Range function', () => {
       {number: 8},
     ];
 
-    it('DataSource iterator 1', () => {
+    it('DataSource iterator 1', async () => {
       const dataSource = new DataSource(Range(2, 8));
       let res = [{number: 1}];
-      for (let i = 2; i <= 8; i++) {
-        const {value} = dataSource.next();
-        res.push(value);
+      for await (let rec of dataSource) {
+        res.push(rec);
       }
       expect(res).toEqual(expected);
     });
 
-    it('DataSource iterator 2', () => {
+    it('DataSource iterator 2', async () => {
       const dataSource = new DataSource(Range(3, 8));
       let res = [{number: 1}, {number: 2}];
-      for (let i = 3; i <= 8; i++) {
-        const {value} = dataSource.next();
-        res.push(value);
+      for await (let rec of dataSource) {
+        res.push(rec);
       }
       expect(res).toEqual(expected);
     });
 
-    it('DataSource iterator filter 1', () => {
-      const dataSource = new DataSource(Range(3, 8), {number: 3});
+    it('DataSource iterator filter from constructor', async () => {
+      const dataSource = new DataSource(Range(1, 8), {number: 3});
       let res = [];
-      let iteratorFinished;
-      while (!iteratorFinished) {
-        const {value, done} = dataSource.next();
-        iteratorFinished = done;
-        if (value) res.push(value);
+      for await (let rec of dataSource) {
+        res.push(rec);
       }
       expect(res).toEqual([expected[2]]);
     });
@@ -71,21 +67,18 @@ describe('DataSource with Range function', () => {
       {number: 0},
     ];
 
-    it('DataSource iterator filter 1', () => {
+    it('DataSource iterator filter 1', async () => {
       const dataSource = new DataSource(Range(1, 8, '%2*3')).filter({number: 3});
       let res = [];
-      let iteratorFinished;
-      while (!iteratorFinished) {
-        const {value, done} = dataSource.next();
-        iteratorFinished = done;
-        if (value) res.push(value);
+      for await (let rec of dataSource) {
+        res.push(rec);
       }
       expect(res).toEqual(sample.filter(({number}) => number === 3));
     });
 
-    it('DataSource iterator filter 1 + getRows', () => {
+    it('DataSource iterator filter 1 + getRows', async () => {
       const dataSource = new DataSource(Range(1, 8, '%2*3'), {number: 3});
-      const res = dataSource.getRecords(3);
+      const res = await dataSource.getRecords(3);
       expect(res).toEqual(sample.filter(({number}) => number === 3).slice(0, 3));
     });
   });

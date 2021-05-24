@@ -43,6 +43,8 @@ export class DataSource {
     for (let i = 0; i < number; i++) {
       result.push(this.next());
     }
-    return Promise.all(result);
+    return Promise.all(result).then(results => {
+      return results.map(({value}) => value);
+    });
   }
 }
