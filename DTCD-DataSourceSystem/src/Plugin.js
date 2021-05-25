@@ -61,7 +61,7 @@ export class DataSourceSystem extends SystemPlugin {
       }
       this.#logSystem.debug(`ExternalSource instance inited`);
 
-      const externalSourceIterator = externalSource[Symbol.asyncIterator]();
+      const externalSourceIterator = externalSource[Symbol.iterator]();
       this.#logSystem.debug(`get ExternalSource iterator`);
       if (!this.#storageSystem.session.hasRecord(name)) {
         this.#storageSystem.session.addRecord(name, []);
@@ -74,35 +74,31 @@ export class DataSourceSystem extends SystemPlugin {
       const baseDataSource = new DataSource(externalSourceIterator);
       this.#logSystem.debug(`Inited DataSource instance based on ExternalSource`);
 
-      baseDataSource[Symbol.asyncIterator] = () => ({
+      baseDataSource[Symbol.iterator] = () => ({
         iterator: externalSourceIterator,
         currentIndex: 0,
         storageRecord,
-        logSystem: this.#logSystem,
-        async next() {
+        next() {
           if (this.currentIndex < this.storageRecord.length) {
-            this.logSystem.debug(`Getting record by dataSourceIterator from StorageSystem`);
             const result = {done: false, value: this.storageRecord[this.currentIndex]};
-            this.currentIndex += 1;
+            this.currentIndex++;
             return result;
           } else {
-            this.logSystem.debug(`Getting record by dataSourceIterator from ExternalDataSource`);
-            const {value, done} = await this.iterator.next();
+            const {value, done} = this.iterator.next();
             if (typeof value !== 'undefined') {
-              this.logSystem.debug(`Value recieved from ExternalDataSource`);
               this.storageRecord.push(value);
-              this.logSystem.debug(`Pushed new record from ExternalDataSource into StorageSystem `);
-              this.currentIndex += 1;
+              this.currentIndex++;
             }
             return {value, done};
           }
         },
       });
+
       this.#logSystem.debug(
-        `Inited baseDataSource [Symbol.asyncIterator] method based on externalSourceIterator.`
+        `Inited baseDataSource [Symbol.iterator] method based on externalSourceIterator.`
       );
 
-      const baseDataSourceIterator = baseDataSource[Symbol.asyncIterator]();
+      const baseDataSourceIterator = baseDataSource[Symbol.iterator]();
       this.#logSystem.debug(`Received aseDataSourceIterator.`);
       baseDataSourceIterator.next();
 

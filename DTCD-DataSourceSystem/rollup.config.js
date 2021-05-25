@@ -23,7 +23,7 @@ export default {
   output: {
     file: `${outputDirectory}/${outputFile}`,
     format: 'esm',
-    sourcemap: false,
+    sourcemap: true,
   },
   watch: {
     include: ['./*/**'],
