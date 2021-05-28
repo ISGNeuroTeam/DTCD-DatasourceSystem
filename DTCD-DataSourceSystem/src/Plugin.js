@@ -7,6 +7,7 @@ export class DataSourceSystem extends SystemPlugin {
   #extensions;
   #logSystem;
   #storageSystem;
+  #sources;
 
   static getRegistrationMeta() {
     return pluginMeta;
@@ -17,9 +18,15 @@ export class DataSourceSystem extends SystemPlugin {
     this.#guid = guid;
     this.#logSystem = new LogSystemAdapter(guid, pluginMeta.name);
     this.#storageSystem = new StorageSystemAdapter();
-
     this.#extensions = this.getExtensions(pluginMeta.name);
+
+    this.#sources = {};
+
     this.#logSystem.debug(`DataSourceSystem instance created!`);
+  }
+
+  #checkSourceNameExists(name) {
+    return Object.keys(this.#sources).includes(name);
   }
 
   get dataSourceTypes() {
@@ -29,13 +36,26 @@ export class DataSourceSystem extends SystemPlugin {
   async createDataSource(initData) {
     this.#logSystem.debug(`DataSourceSystem start create createDataSource`);
     try {
-      const {type, name} = initData;
-      if (typeof type !== 'string' || typeof name !== 'string') {
+      let {type, name} = initData;
+
+      if (typeof type !== 'string') {
         this.#logSystem.error(
           `DataSourceSystem.createDataSource invoked with not String params: type - "${type}", name - "${name}"`
         );
         throw new Error('Initial object should have "type" and "name" string properties');
       }
+
+      if (typeof name !== 'string') {
+        const prefix = 'DataSource-';
+        let sourceNameCandidate;
+        do {
+          let nextIndex = Object.keys(this.#sources).length;
+          sourceNameCandidate = prefix + nextIndex;
+          nextIndex++;
+        } while (this.#checkSourceNameExists(sourceNameCandidate));
+        name = sourceNameCandidate;
+      }
+
       this.#logSystem.debug(
         `Started create of DataSource with type - "${type}" and name - "${name}"`
       );
