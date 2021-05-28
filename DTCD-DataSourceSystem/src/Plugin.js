@@ -23,8 +23,7 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   get dataSourceTypes() {
-    this.#logSystem.debug(`DataSourceSystem get dataSourceTypes`);
-    return this.#extensions.map(ext => ext.plugin.getExtensionInfo().type);
+    return [{type: 'OTL'}];
   }
 
   async createDataSource(initData) {
