@@ -23,7 +23,7 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   get dataSourceTypes() {
-    return [{type: 'OTL'}];
+    return ['OTL'];
   }
 
   async createDataSource(initData) {
