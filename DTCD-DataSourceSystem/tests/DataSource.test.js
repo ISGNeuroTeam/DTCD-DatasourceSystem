@@ -55,7 +55,7 @@ describe('DataSource with Range function', () => {
       expect(res).toEqual([expected[2]]);
     });
   });
-  describe('ExteranlSourceIterator is a Array of numbers 1-8 with honest filter method', () => {
+  describe('ExternalSourceIterator is a Array of numbers 1-8 with honest filter method', () => {
     const sample = [
       {number: 3},
       {number: 0},
@@ -78,7 +78,7 @@ describe('DataSource with Range function', () => {
 
     it('DataSource iterator filter 1 + getRows', () => {
       const dataSource = new DataSource(Range(1, 8, '%2*3'), {number: 3});
-      const res = dataSource.getRecords(3);
+      const res = dataSource.getRecords(3).toArray();
       expect(res).toEqual(sample.filter(({number}) => number === 3).slice(0, 3));
     });
   });

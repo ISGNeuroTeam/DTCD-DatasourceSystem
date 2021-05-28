@@ -35,24 +35,22 @@ export class DataSource {
   filter(expression) {
     // TODO: expression -> filterObject
     const filterObject = expression;
-    return new DataSource(this, filterObject);
+    return new DataSource(this[Symbol.iterator](), filterObject);
   }
 
   getRecords(number) {
     let count = 0;
     const result = [];
     for (let record of this) {
-      if (typeof number !== 'undefined' && count >= number) break;
-      else {
-        result.push(record);
-        count++;
-      }
+      result.push(record);
+      count++;
+      if (typeof number !== 'undefined' && count >= number) break; // After "for-of" iteration record already cached, also return this
     }
-    return result;
+    return new DataSource(result);
   }
 
-  toString() {
-    return 'DataSource';
+  toArray() {
+    return Array.from(this);
   }
 
   toString() {
