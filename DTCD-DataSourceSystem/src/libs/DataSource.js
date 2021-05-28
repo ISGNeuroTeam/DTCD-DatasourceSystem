@@ -50,7 +50,7 @@ export class DataSource {
   }
 
   toArray() {
-    return Array.from(this);
+    return Array.from(this.#iterator);
   }
 
   toString() {
