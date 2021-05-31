@@ -1,6 +1,6 @@
-import {SystemPlugin, LogSystemAdapter, StorageSystemAdapter} from './../../DTCD-SDK';
-import {DataSource} from './libs/DataSource';
-import {pluginMeta} from './../package.json';
+import { SystemPlugin, LogSystemAdapter, StorageSystemAdapter } from './../../DTCD-SDK';
+import { DataSource } from './libs/DataSource';
+import { pluginMeta } from './../package.json';
 
 export class DataSourceSystem extends SystemPlugin {
   #guid;
@@ -30,13 +30,13 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   get dataSourceTypes() {
-    return ['OTL'];
+    return this.#extensions.map(ext => ext.plugin.getExtensionInfo().type);
   }
 
   async createDataSource(initData) {
     this.#logSystem.debug(`DataSourceSystem start create createDataSource`);
     try {
-      let {type, name} = initData;
+      let { type, name } = initData;
 
       if (typeof type !== 'string') {
         this.#logSystem.error(
@@ -60,7 +60,7 @@ export class DataSourceSystem extends SystemPlugin {
         `Started create of DataSource with type - "${type}" and name - "${name}"`
       );
 
-      const {plugin: ExternalSource} = this.#extensions.find(
+      const { plugin: ExternalSource } = this.#extensions.find(
         ext => ext.plugin.getExtensionInfo().type === type
       );
 
@@ -90,7 +90,7 @@ export class DataSourceSystem extends SystemPlugin {
       const storageRecord = this.#storageSystem.session.getRecord(name);
       this.#logSystem.debug(`Get record from StorageSystem for ExternalSource`);
 
-      const baseDataSource = new DataSource(externalSourceIterator);
+      const baseDataSource = new DataSource(externalSource);
       this.#logSystem.debug(`Inited DataSource instance based on ExternalSource`);
 
       baseDataSource[Symbol.iterator] = () => ({
@@ -99,16 +99,16 @@ export class DataSourceSystem extends SystemPlugin {
         storageRecord,
         next() {
           if (this.currentIndex < this.storageRecord.length) {
-            const result = {done: false, value: this.storageRecord[this.currentIndex]};
+            const result = { done: false, value: this.storageRecord[this.currentIndex] };
             this.currentIndex++;
             return result;
           } else {
-            const {value, done} = this.iterator.next();
+            const { value, done } = this.iterator.next();
             if (typeof value !== 'undefined') {
               this.storageRecord.push(value);
               this.currentIndex++;
             }
-            return {value, done};
+            return { value, done };
           }
         },
       });

@@ -1,22 +1,17 @@
-import {ExtensionPlugin} from './../../../DTCD-SDK';
+import { ExtensionPlugin } from './../../../DTCD-SDK';
 
 export class TestDataSource extends ExtensionPlugin {
-  #from;
-  #to;
-  #operation;
-
   static getExtensionInfo() {
     return {
       type: 'Range',
     };
   }
 
-  constructor(params = {}) {
+  constructor(from, to, operation = '-1') {
     super();
-    const {from = 0, to = 0, operation = '-1'} = params;
-    this.#from = from;
-    this.#to = to;
-    this.#operation = operation;
+    this.from = from;
+    this.to = to;
+    this.operation = operation;
     this.type = 'Range';
   }
   init() {
@@ -25,15 +20,15 @@ export class TestDataSource extends ExtensionPlugin {
 
   [Symbol.iterator]() {
     return {
-      operation: this.#operation,
-      current: this.#from,
-      last: this.#to,
+      operation: this.operation,
+      current: this.from,
+      last: this.to,
       next() {
         if (this.current <= this.last) {
           this.current++;
-          return {done: false, value: {number: eval(`${this.current}${this.operation}`)}};
+          return { done: false, value: { number: eval(`${this.current}${this.operation}`) } };
         } else {
-          return {done: true};
+          return { done: true };
         }
       },
     };
@@ -74,6 +69,6 @@ const systems = {
 export const initApp = () => {
   global.Application = {
     getSystem: name => systems[name],
-    getExtensions: () => [{plugin: TestDataSource}],
+    getExtensions: () => [{ plugin: TestDataSource }],
   };
 };

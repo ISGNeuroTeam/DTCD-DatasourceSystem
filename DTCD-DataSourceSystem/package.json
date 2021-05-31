@@ -14,7 +14,8 @@
   "scripts": {
     "build": "rollup -c",
     "dev": "rollup -cw",
-    "test": "jest"
+    "test": "jest",
+    "test-dev": "jest --watchAll"
   },
   "devDependencies": {
     "@babel/core": "7.13.16",

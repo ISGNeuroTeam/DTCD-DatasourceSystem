@@ -1,41 +1,41 @@
 export class DataSource {
-  #iterator;
-  #filterObject;
-
-  constructor(iterator, filterObject) {
-    this.#iterator = iterator;
-    this.#filterObject = filterObject ? filterObject : {};
+  constructor(iterable, filterObject) {
+    this.iterable = iterable;
+    this.filterObject = filterObject ? filterObject : {};
   }
+
   [Symbol.iterator]() {
-    return this;
-  }
-
-  next() {
-    while (true) {
-      const {value, done} = this.#iterator.next();
-      let filterPassed = true;
-      if (typeof value === 'undefined' || done) {
-        return {value, done};
-      }
-      for (let key of Object.keys(this.#filterObject)) {
-        if (
-          typeof value[key] === 'undefined' ||
-          !String(value[key]).includes(String(this.#filterObject[key]))
-        ) {
-          filterPassed = false;
-          break;
+    const iterator = this.iterable[Symbol.iterator].apply(this.iterable);
+    const filterObject = this.filterObject;
+    return {
+      iterator,
+      filterObject,
+      next() {
+        mainloop: while (true) {
+          const { value, done } = this.iterator.next();
+          let filterPassed = true;
+          if (typeof value === 'undefined' || done) {
+            return { value, done };
+          }
+          for (let key of Object.keys(this.filterObject)) {
+            if (
+              typeof value[key] === 'undefined' ||
+              !String(value[key]).includes(String(this.filterObject[key]))
+            ) {
+              filterPassed = false;
+              continue mainloop;
+            }
+          }
+          return { value, done };
         }
-      }
-      if (filterPassed) {
-        return {value, done};
-      }
-    }
+      },
+    };
   }
 
   filter(expression) {
     // TODO: expression -> filterObject
     const filterObject = expression;
-    return new DataSource(this[Symbol.iterator](), filterObject);
+    return new DataSource(this.iterable, filterObject);
   }
 
   getRecords(number) {
@@ -50,7 +50,7 @@ export class DataSource {
   }
 
   toArray() {
-    return Array.from(this.#iterator);
+    return Array.from(this);
   }
 
   toString() {
