@@ -4,7 +4,7 @@
     "type": "core",
     "name": "DataSourceSystem",
     "title": "Cистема источников данных",
-    "priority":2.5,
+    "priority": 2.5,
     "withDependencies": false,
     "version": "0.1.0"
   },

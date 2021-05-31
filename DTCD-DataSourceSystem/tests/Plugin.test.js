@@ -1,8 +1,8 @@
-import {DataSourceSystem} from './../src/Plugin';
-import {DataSource} from './../../DTCD-DataSourceSystem/src/libs/DataSource';
-import {SystemPlugin} from './../../DTCD-SDK';
-import {initApp, TestDataSource} from 'utils/initApp';
-import {expect} from '@jest/globals';
+import { DataSourceSystem } from './../src/Plugin';
+import { DataSource } from './../../DTCD-DataSourceSystem/src/libs/DataSource';
+import { SystemPlugin } from './../../DTCD-SDK';
+import { initApp, TestDataSource } from 'utils/initApp';
+import { expect } from '@jest/globals';
 
 initApp();
 
@@ -27,7 +27,7 @@ describe('Check DataSourceSystem static method getRegistrationMeta():', () => {
   });
 
   describe('Check returned meta object:', () => {
-    const {type, name, title, version, priority} = pluginMeta;
+    const { type, name, title, version, priority } = pluginMeta;
 
     test('Property "type" is exists and is equal to "core" string', () => {
       expect(type).toBeDefined();
@@ -61,15 +61,18 @@ describe('DataSourceSystem', () => {
 
   describe('createDataSource method', () => {
     it('Create dataSource instance ', async () => {
-      const ds = await dsSystem.createDataSource({name: 'MyTestDataSourceInstance', type: 'Range'});
+      const ds = await dsSystem.createDataSource({
+        name: 'MyTestDataSourceInstance',
+        type: 'Range',
+      });
       expect(ds).toBeInstanceOf(DataSource);
     });
 
     it('Should invoke method init of DataSource extension', async () => {
-      let {plugin: Extension} = dsSystem.getExtensions('DataSourceSystem')[0];
+      let { plugin: Extension } = dsSystem.getExtensions('DataSourceSystem')[0];
       const initFunc = jest.fn(async () => true);
       Extension.prototype.init = initFunc;
-      await dsSystem.createDataSource({name: 'MyTestDataSourceInstance', type: 'Range'});
+      await dsSystem.createDataSource({ name: 'MyTestDataSourceInstance', type: 'Range' });
       expect(initFunc).toHaveBeenCalled();
     });
   });
@@ -95,7 +98,7 @@ describe('DataSourceSystem', () => {
         type: 'Range',
         to: 10,
       });
-      const {value} = ds[Symbol.iterator]().next();
+      const { value } = ds[Symbol.iterator]().next();
       expect(storageSystem.session.getRecord(dataSourceName)[0]).toEqual(value);
     });
 
@@ -109,14 +112,14 @@ describe('DataSourceSystem', () => {
       const mockValue = '!TEST_RECORD!'; // SO, IT'S NOT OBJECT
       ds[Symbol.iterator]().next();
       storageSystem.session.getRecord(dataSourceName)[0] = mockValue;
-      const {value} = ds[Symbol.iterator]().next();
+      const { value } = ds[Symbol.iterator]().next();
       expect(value).toEqual(mockValue);
     });
 
     it('DataSource cached all data by "Array.from"', async () => {
       const dataSourceName = 'MyTestDataSourceInstance';
 
-      const dsConfig = {name: dataSourceName, type: 'Range', to: 5};
+      const dsConfig = { name: dataSourceName, type: 'Range', to: 5 };
       const ds = await dsSystem.createDataSource(dsConfig);
       const expectedStorageData = Array.from(ds);
       expect(storageSystem.session.getRecord(dataSourceName)).toEqual(expectedStorageData);
@@ -125,7 +128,7 @@ describe('DataSourceSystem', () => {
     it('DataSource cached data received only by "getRecords" method', async () => {
       const dataSourceName = 'MyTestDataSourceInstance';
 
-      const dsConfig = {name: dataSourceName, type: 'Range', to: 30};
+      const dsConfig = { name: dataSourceName, type: 'Range', to: 30 };
       const ds = await dsSystem.createDataSource(dsConfig);
       const expectedStorageData = ds.getRecords(5).toArray();
       expect(storageSystem.session.getRecord(dataSourceName)).toEqual(expectedStorageData);
@@ -134,7 +137,7 @@ describe('DataSourceSystem', () => {
     it('DataSource cached data on demand by "getRecords" method', async () => {
       const dataSourceName = 'MyTestDataSourceInstance';
 
-      const dsConfig = {name: dataSourceName, type: 'Range', to: 30};
+      const dsConfig = { name: dataSourceName, type: 'Range', to: 30 };
       const ds = await dsSystem.createDataSource(dsConfig);
       ds.getRecords(5);
       const expectedStorageData = ds.getRecords(10).toArray();
@@ -144,22 +147,22 @@ describe('DataSourceSystem', () => {
     it('DataSource "getRecords" after "filter" method returns number filtered records from "getRecords" argument', async () => {
       const dataSourceName = 'MyTestDataSourceInstance';
 
-      const dsConfig = {name: dataSourceName, type: 'Range', to: 30};
+      const dsConfig = { name: dataSourceName, type: 'Range', to: 30 };
       const ds = await dsSystem.createDataSource(dsConfig);
       const expectedData = Array.from(ds)
-        .filter(({number}) => String(number).includes(1))
+        .filter(({ number }) => String(number).includes(1))
         .slice(0, 3);
 
-      const receivedRecords = ds.filter({number: 1}).getRecords(3).toArray();
+      const receivedRecords = ds.filter({ number: 1 }).getRecords(3).toArray();
       expect(receivedRecords).toEqual(expectedData);
     });
 
     it('DataSource cached data on demand by "getRecords" after "filter" method', async () => {
       const dataSourceName = 'MyTestDataSourceInstance';
 
-      const dsConfig = {name: dataSourceName, type: 'Range', to: 30};
+      const dsConfig = { name: dataSourceName, type: 'Range', to: 30 };
       const ds = await dsSystem.createDataSource(dsConfig);
-      ds.filter({number: 1}).getRecords(3);
+      ds.filter({ number: 1 }).getRecords(3);
       const expectedStorageData = ds.getRecords(21).toArray();
       expect(storageSystem.session.getRecord(dataSourceName)).toEqual(expectedStorageData);
     });
