@@ -32,6 +32,7 @@ describe('DataSource with new TestDataSource function', () => {
       expect(res).toEqual(expected);
     });
   });
+
   describe('ExternalSourceIterator is a Array of numbers 1-8 with honest filter method', () => {
     const expected = [{ number: 3 }, { number: 3 }, { number: 3 }, { number: 3 }];
 
@@ -48,6 +49,14 @@ describe('DataSource with new TestDataSource function', () => {
       const dataSource = new DataSource(new TestDataSource(1, 8, '%2*3'));
       const res = dataSource.filter({ number: 3 }).getRecords(3).toArray();
       expect(res).toEqual(expected.slice(0, 3));
+    });
+  });
+
+  describe('DataSource field method', () => {
+    it('should return Array of number values', () => {
+      const dataSource = new DataSource(new TestDataSource(1, 8));
+      const expected = Array.from(new TestDataSource(1, 8)).map(val => val['number']);
+      expect(dataSource.field('number').toArray()).toEqual(expected);
     });
   });
 });

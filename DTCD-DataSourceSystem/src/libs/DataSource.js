@@ -27,7 +27,7 @@ export class DataSource {
     // TODO: expression -> filterObject
     const filterData = expression;
 
-    return new DataSource(this.iterable, function filterFunc(value, done) {
+    return new DataSource(this.iterable, function (value, done) {
       if (typeof value === 'undefined') return { done };
       else if (typeof value === 'object') {
         if (typeof filterData !== 'object') {
@@ -48,6 +48,13 @@ export class DataSource {
         }
         return String(value).includes(String(filterData)) ? { value, done } : { done };
       }
+    });
+  }
+
+  field(fieldName) {
+    return new DataSource(this.iterable, function (value, done) {
+      if (typeof value === 'undefined') return { done };
+      else return { value: value[fieldName], done };
     });
   }
 
