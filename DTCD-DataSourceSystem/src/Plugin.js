@@ -20,13 +20,14 @@ export class DataSourceSystem extends SystemPlugin {
     this.#storageSystem = new StorageSystemAdapter();
     this.#extensions = this.getExtensions(pluginMeta.name);
 
-    this.#sources = {};
+    this.#sources = [];
 
     this.#logSystem.debug(`DataSourceSystem instance created!`);
   }
 
   #checkSourceNameExists(name) {
-    return Object.keys(this.#sources).includes(name);
+    const index = this.#sources.indexOf(src => src.name === name);
+    return index !== -1;
   }
 
   get dataSourceTypes() {
@@ -116,6 +117,7 @@ export class DataSourceSystem extends SystemPlugin {
       this.#logSystem.debug(
         `Inited baseDataSource [Symbol.iterator] method based on externalSourceIterator.`
       );
+      this.#sources.push({ source: baseDataSource, options: initData, name, type });
 
       const baseDataSourceIterator = baseDataSource[Symbol.iterator]();
       this.#logSystem.debug(`Received aseDataSourceIterator.`);
@@ -128,5 +130,14 @@ export class DataSourceSystem extends SystemPlugin {
       this.#logSystem.error(err);
       throw new Error(err);
     }
+  }
+
+  getDataSource(name) {
+    const source = this.#sources.find(src => src.name === name);
+    if (source) return source;
+  }
+
+  getDataSourceList() {
+    return this.#sources;
   }
 }
