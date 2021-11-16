@@ -1,4 +1,9 @@
-import { SystemPlugin, LogSystemAdapter, StorageSystemAdapter } from './../../DTCD-SDK';
+import {
+  SystemPlugin,
+  LogSystemAdapter,
+  StorageSystemAdapter,
+  EventSystemAdapter,
+} from './../../DTCD-SDK';
 import { DataSource } from './libs/DataSource';
 import { pluginMeta } from './../package.json';
 
@@ -7,6 +12,7 @@ export class DataSourceSystem extends SystemPlugin {
   #extensions;
   #logSystem;
   #storageSystem;
+  #eventSystem;
   #sources;
 
   static getRegistrationMeta() {
@@ -18,6 +24,7 @@ export class DataSourceSystem extends SystemPlugin {
     this.#guid = guid;
     this.#logSystem = new LogSystemAdapter(guid, pluginMeta.name);
     this.#storageSystem = new StorageSystemAdapter();
+    this.#eventSystem = new EventSystemAdapter(guid);
     this.#extensions = this.getExtensions(pluginMeta.name);
 
     this.#sources = [];
@@ -74,6 +81,8 @@ export class DataSourceSystem extends SystemPlugin {
       const externalSource = new ExternalSource(initData);
       this.#logSystem.debug(`ExternalSource instance created`);
 
+      // EVENT-SYSTEM
+      this.#eventSystem.registerEvent(`${name}-UPDATE`);
       const isInited = await externalSource.init();
       if (!isInited) {
         this.#logSystem.error(`Couldn't init ExternalSource instance`);
@@ -124,6 +133,7 @@ export class DataSourceSystem extends SystemPlugin {
       baseDataSourceIterator.next();
 
       this.#logSystem.debug(`Received first record from dataSourceIterator`);
+      this.#eventSystem.publishEvent(`${name}-UPDATE`, baseDataSource);
 
       return baseDataSource;
     } catch (err) {
@@ -135,6 +145,10 @@ export class DataSourceSystem extends SystemPlugin {
   getDataSource(name) {
     const source = this.#sources.find(src => src.name === name);
     if (source) return source;
+  }
+
+  removeDataSource(name) {
+    return delete this.#sources[this.#sources.findIndex(src => src.name === name)];
   }
 
   getDataSourceList() {
