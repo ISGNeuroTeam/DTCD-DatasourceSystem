@@ -12,3 +12,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DataSource constructor with second callback argument
 - DataSource class as Iterable object
 - plugin init
+- plugin hooks

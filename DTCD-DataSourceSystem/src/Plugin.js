@@ -32,6 +32,27 @@ export class DataSourceSystem extends SystemPlugin {
     this.#logSystem.debug(`DataSourceSystem instance created!`);
   }
 
+  getPluginConfig() {
+    const sources = [];
+    for (let source of this.#sources) {
+      const { initData, name, type } = source;
+      sources.push({ initData, name, type });
+    }
+    return { sources };
+  }
+
+  async setPluginConfig(config = {}) {
+    config.sources.forEach(async ({ initData }) => {
+      await this.createDataSource(initData);
+    });
+  }
+
+  getFormSettings() {}
+
+  setFormSettings() {}
+
+  beforeDelete() {}
+
   #checkSourceNameExists(name) {
     const index = this.#sources.indexOf(src => src.name === name);
     return index !== -1;
@@ -82,7 +103,9 @@ export class DataSourceSystem extends SystemPlugin {
       this.#logSystem.debug(`ExternalSource instance created`);
 
       // EVENT-SYSTEM
-      this.#eventSystem.registerEvent(`${name}-UPDATE`);
+      ['UPDATE'].forEach(evtType => {
+        this.#eventSystem.registerEvent(`${name}-${evtType}`);
+      });
       const isInited = await externalSource.init();
       if (!isInited) {
         this.#logSystem.error(`Couldn't init ExternalSource instance`);
@@ -126,7 +149,7 @@ export class DataSourceSystem extends SystemPlugin {
       this.#logSystem.debug(
         `Inited baseDataSource [Symbol.iterator] method based on externalSourceIterator.`
       );
-      this.#sources.push({ source: baseDataSource, options: initData, name, type });
+      this.#sources.push({ source: baseDataSource, initData, name, type });
 
       const baseDataSourceIterator = baseDataSource[Symbol.iterator]();
       this.#logSystem.debug(`Received aseDataSourceIterator.`);
