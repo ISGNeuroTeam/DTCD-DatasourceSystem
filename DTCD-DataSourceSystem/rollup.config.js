@@ -1,8 +1,8 @@
-import {nodeResolve} from '@rollup/plugin-node-resolve';
-import {babel} from '@rollup/plugin-babel';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
+import { babel } from '@rollup/plugin-babel';
 import json from '@rollup/plugin-json';
 
-import {pluginMeta} from './package.json';
+import { pluginMeta } from './package.json';
 
 const watch = Boolean(process.env.ROLLUP_WATCH);
 
@@ -19,7 +19,7 @@ const plugins = [
 
 export default {
   plugins,
-  input: `./src/Plugin.js`,
+  input: `./src/DataSourceSystem.js`,
   output: {
     file: `${outputDirectory}/${outputFile}`,
     format: 'esm',

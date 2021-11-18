@@ -14,7 +14,8 @@ export class TestDataSource extends ExtensionPlugin {
     this.operation = operation;
     this.type = 'Range';
   }
-  init() {
+
+  async init() {
     return true;
   }
 
@@ -42,6 +43,9 @@ const systems = {
     warn() {},
     error() {},
     fatal() {},
+  },
+  EventSystem: {
+    registerEvent() {},
   },
   StorageSystem: {
     session: {
