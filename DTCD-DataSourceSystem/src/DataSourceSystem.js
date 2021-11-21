@@ -4,7 +4,7 @@ import {
   StorageSystemAdapter,
   EventSystemAdapter,
 } from '../../DTCD-SDK';
-import { DataSource } from './libs/DataSource';
+// import { DataSource } from './libs/DataSource';
 import { pluginMeta } from '../package.json';
 
 export class DataSourceSystem extends SystemPlugin {
@@ -27,24 +27,26 @@ export class DataSourceSystem extends SystemPlugin {
     this.#eventSystem = new EventSystemAdapter(guid);
     this.#extensions = this.getExtensions(pluginMeta.name);
 
-    this.#sources = [];
+    this.#sources = {};
 
     this.#logSystem.debug(`DataSourceSystem instance created!`);
   }
 
   getPluginConfig() {
-    const sources = [];
-    for (let source of this.#sources) {
-      const { initData, name, type } = source;
-      sources.push({ initData, name, type });
+    const sources = {};
+    for (let source in this.#sources) {
+      const { initData, type } = this.#sources[source];
+      sources[source] = { initData, type };
     }
     return { sources };
   }
 
   setPluginConfig(config = {}) {
-    config.sources.forEach(({ initData }) => {
-      this.createDataSource(initData);
-    });
+    if (config.sources)
+      for (let source in config.sources) {
+        const { initData } = config.sources[source];
+        this.createDataSource({ name: source, ...initData });
+      }
   }
 
   getFormSettings() {}
@@ -53,46 +55,11 @@ export class DataSourceSystem extends SystemPlugin {
 
   beforeDelete() {}
 
-  #checkSourceNameExists(name) {
-    const index = this.#sources.indexOf(src => src.name === name);
-    return index !== -1;
-  }
-
-  #toCache(keyRecord, dataSource) {
+  #toCache(keyRecord, data) {
     if (!this.#storageSystem.session.hasRecord(keyRecord)) {
-      this.#storageSystem.session.addRecord(keyRecord, []);
+      this.#storageSystem.session.addRecord(keyRecord, data);
       this.#logSystem.debug(`Added record to StorageSystem for ExternalSource`);
-    } else this.#storageSystem.session.putRecord(keyRecord, []);
-
-    const externalSourceIterator = dataSource[Symbol.iterator]();
-    this.#logSystem.debug(`get ExternalSource iterator`);
-
-    const storageRecord = this.#storageSystem.session.getRecord(keyRecord);
-    this.#logSystem.debug(`Get record from StorageSystem for ExternalSource`);
-
-    dataSource[Symbol.iterator] = () => {
-      return {
-        iterator: externalSourceIterator,
-        currentIndex: 0,
-        storageRecord,
-        next() {
-          if (this.currentIndex < this.storageRecord.length) {
-            const result = { done: false, value: this.storageRecord[this.currentIndex] };
-            this.currentIndex++;
-            return result;
-          } else {
-            const { value, done } = this.iterator.next();
-            if (typeof value !== 'undefined') {
-              this.storageRecord.push(value);
-              this.currentIndex++;
-            }
-            return { value, done };
-          }
-        },
-      };
-    };
-
-    return dataSource;
+    } else this.#storageSystem.session.putRecord(keyRecord, data);
   }
 
   get dataSourceTypes() {
@@ -103,6 +70,7 @@ export class DataSourceSystem extends SystemPlugin {
     this.#logSystem.debug(`DataSourceSystem start create createDataSource`);
     try {
       let { type, name } = initData;
+      delete initData.name;
 
       if (typeof type !== 'string') {
         this.#logSystem.error(
@@ -111,68 +79,95 @@ export class DataSourceSystem extends SystemPlugin {
         throw new Error('Initial object should have "type" and "name" string properties');
       }
 
-      // SETTING-DATASOURCE-NAME
-      if (typeof name !== 'string') {
-        const prefix = 'DataSource-';
-        let sourceNameCandidate;
-        do {
-          let nextIndex = Object.keys(this.#sources).length;
-          sourceNameCandidate = prefix + nextIndex;
-          nextIndex++;
-        } while (this.#checkSourceNameExists(sourceNameCandidate));
-        name = sourceNameCandidate;
+      if (this.#sources.hasOwnProperty(name)) {
+        this.#logSystem.error(`Datasource with name '${name} already exists!`);
+        console.error(`Datasource with name '${name} already exists!`);
+        return;
       }
+
       this.#logSystem.debug(
         `Started create of DataSource with type - "${type}" and name - "${name}"`
       );
 
-      const { plugin: IterableExtensionPlugin } = this.#extensions.find(
+      const { plugin: DataSourcePlugin } = this.#extensions.find(
         ext => ext.plugin.getExtensionInfo().type === type
       );
 
-      if (!IterableExtensionPlugin) {
+      if (!DataSourcePlugin) {
         this.#logSystem.error(`Couldn't find extension with type - "${type}"`);
         throw new Error(`Cannot find "${type}" DataSource`);
       }
       this.#logSystem.debug(`Found extension plugin by type`);
 
-      // DATASOURCE-PLUGIN INSTANCE
-      const iterablePlugin = new IterableExtensionPlugin(initData);
+      // DATASOURCE-PLUGIN
+      const dataSource = new DataSourcePlugin(initData);
       this.#logSystem.debug(`ExternalSource instance created`);
 
-      // CACHING
-      this.#toCache(name, iterablePlugin); // name is keyword into storage
-      this.#logSystem.debug(`Instance of IterableExtension cached`);
+      // // CACHING
+      // this.#toCache(name, iterablePlugin); // name is keyword into storage
+      // this.#logSystem.debug(`Instance of IterableExtension cached`);
 
-      // EVENT-SYSTEM
-      ['UPDATE'].forEach(evtType => {
-        this.#eventSystem.registerEvent(`${name}-${evtType}`);
-      });
-      const dataSource = new DataSource(iterablePlugin);
-      iterablePlugin.init().then(isInited => {
-        if (!isInited) {
-          this.#logSystem.error(`Couldn't init ExternalSource instance`);
-          throw new Error("Job isn't created");
-        }
-        this.#eventSystem.publishEvent(`${name}-UPDATE`, dataSource);
-        this.#logSystem.debug(`ExternalSource instance inited`);
+      this.#eventSystem.registerEvent('DataSourceStatusUpdate', {
+        dataSource: name,
+        status: 'new',
       });
 
-      this.#sources.push({ source: dataSource, initData, name, type });
-      return dataSource;
+      this.#eventSystem.registerEvent('DataSourceStatusUpdate', {
+        dataSource: name,
+        status: 'success',
+      });
+
+      this.#sources[name] = { source: dataSource, initData, type, status: 'new' };
+      this.#eventSystem.publishEvent(`DataSourceStatusUpdate`, {
+        dataSource: name,
+        status: 'new',
+      });
+      this.#logSystem.debug(`ExternalSource instance inited`);
+
+      this.runDataSource(name);
+
+      return true;
     } catch (err) {
       this.#logSystem.error(err);
       throw new Error(err);
     }
   }
 
+  runDataSource(name) {
+    this.#sources[name].source
+      .init()
+      .then(isInited => {
+        if (!isInited) {
+          this.#logSystem.error(`Couldn't init ExternalSource instance`);
+          throw new Error("Job isn't created");
+        }
+        return this.#sources[name].source.getData();
+      })
+      .then(data => {
+        this.#toCache(name, data);
+
+        this.#sources[name].status = 'success';
+
+        this.#eventSystem.publishEvent(`DataSourceStatusUpdate`, {
+          dataSource: name,
+          status: 'success',
+        });
+      });
+  }
+
+  editDataSource(name, params) {
+    this.#sources[name].initData = { ...this.#sources[name].initData, ...params };
+    this.#sources[name].source.editParams(params);
+    this.runDataSource(name);
+  }
+
   getDataSource(name) {
-    const source = this.#sources.find(src => src.name === name);
-    if (source) return source;
+    if (this.#sources.hasOwnProperty(name)) return this.#sources[name];
+    return null;
   }
 
   removeDataSource(name) {
-    return delete this.#sources[this.#sources.findIndex(src => src.name === name)];
+    delete this.#sources[name];
   }
 
   getDataSourceList() {
