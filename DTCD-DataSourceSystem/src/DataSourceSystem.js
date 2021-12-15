@@ -39,6 +39,10 @@ export class DataSourceSystem extends SystemPlugin {
       'processTokenUpdateEvent'
     );
 
+    this.#eventSystem.registerEvent('DataSourceCreated');
+    this.#eventSystem.registerEvent('DataSourceEdited');
+    this.#eventSystem.registerEvent('DataSourceDeleted');
+
     this.#logSystem.debug(`DataSourceSystem instance created!`);
   }
 
@@ -134,6 +138,11 @@ export class DataSourceSystem extends SystemPlugin {
         dataSource: name,
         status: 'new',
       });
+
+      this.#eventSystem.publishEvent(`DataSourceCreated`, {
+        dataSource: name,
+      });
+
       this.#logSystem.debug(`ExternalSource instance inited`);
 
       this.runDataSource(name);
@@ -173,11 +182,15 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   editDataSource(name, params) {
+    this.#sources[name].status = 'new';
     this.#removeDataSourceTokens(name);
     const { original_otl } = params;
     const processed_otl = this.#processQuerySting(name, original_otl);
     this.#sources[name].initData = { ...this.#sources[name].initData, ...params };
     this.#sources[name].source.editParams({ ...params, original_otl: processed_otl });
+    this.#eventSystem.publishEvent(`DataSourceEdited`, {
+      dataSource: name,
+    });
     this.#runDataSource(name);
   }
 
@@ -236,6 +249,9 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   removeDataSource(name) {
+    this.#eventSystem.publishEvent(`DataSourceDeleted`, {
+      dataSource: name,
+    });
     delete this.#sources[name];
   }
 
