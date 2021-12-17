@@ -46,6 +46,8 @@ const systems = {
   },
   EventSystem: {
     registerEvent() {},
+    registerPluginInstance() {},
+    subscribe() {},
   },
   StorageSystem: {
     session: {
@@ -74,5 +76,8 @@ export const initApp = () => {
   global.Application = {
     getSystem: name => systems[name],
     getExtensions: () => [{ plugin: TestDataSource }],
+    getGUID: instance => {
+      return 'guid2';
+    },
   };
 };
