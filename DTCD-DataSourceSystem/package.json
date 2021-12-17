@@ -1,5 +1,6 @@
 {
   "name": "dtcd-datasource-system",
+  "version": "0.1.0",
   "pluginMeta": {
     "type": "core",
     "name": "DataSourceSystem",
