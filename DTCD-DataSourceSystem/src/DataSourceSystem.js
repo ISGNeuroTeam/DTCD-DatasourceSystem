@@ -49,8 +49,8 @@ export class DataSourceSystem extends SystemPlugin {
   getPluginConfig() {
     const sources = {};
     for (let source in this.#sources) {
-      const { initData, type } = this.#sources[source];
-      sources[source] = { initData, type };
+      const { datasourceParams, type } = this.#sources[source];
+      sources[source] = { datasourceParams, type };
     }
     return { sources };
   }
@@ -58,8 +58,8 @@ export class DataSourceSystem extends SystemPlugin {
   setPluginConfig(config = {}) {
     if (config.sources)
       for (let source in config.sources) {
-        const { initData } = config.sources[source];
-        this.createDataSource({ name: source, ...initData });
+        const { datasourceParams } = config.sources[source];
+        this.createDataSource(source, config.sources[source].type, datasourceParams);
       }
   }
 
@@ -80,29 +80,24 @@ export class DataSourceSystem extends SystemPlugin {
     return this.#extensions.map(ext => ext.plugin.getExtensionInfo().type);
   }
 
-  createDataSource(initData) {
-    this.#logSystem.debug(`DataSourceSystem start create createDataSource`);
+  createDataSource(name, type, datasourceParams) {
+    this.#logSystem.debug(
+      `Trying to create new '${type}' DataSource with name '${name}' and params: ${JSON.stringify(
+        datasourceParams
+      )}`
+    );
     try {
-      // !!!!! Refactor name of query string from 'original_otl to something general for all datasources in order to preprocess tokens correctly
-      let { type, name } = initData;
-      delete initData.name;
-
-      if (typeof type !== 'string') {
+      if (typeof type !== 'string' && typeof type !== 'string') {
         this.#logSystem.error(
           `DataSourceSystem.createDataSource invoked with not String params: type - "${type}", name - "${name}"`
         );
-        throw new Error('Initial object should have "type" and "name" string properties');
+        throw new Error('"type" and "name" arguments type must be string');
       }
 
       if (this.#sources.hasOwnProperty(name)) {
         this.#logSystem.error(`Datasource with name '${name} already exists!`);
-        // console.error(`Datasource with name '${name} already exists!`);
         return;
       }
-
-      this.#logSystem.debug(
-        `Started create of DataSource with type - "${type}" and name - "${name}"`
-      );
 
       const { plugin: DataSourcePlugin } = this.#extensions.find(
         ext => ext.plugin.getExtensionInfo().type.toLowerCase() === type.toLowerCase()
@@ -115,7 +110,7 @@ export class DataSourceSystem extends SystemPlugin {
       this.#logSystem.debug(`Found extension plugin by type`);
 
       // DATASOURCE-PLUGIN
-      const dataSource = new DataSourcePlugin({ initData });
+      const dataSource = new DataSourcePlugin(datasourceParams);
       this.#logSystem.debug(`ExternalSource instance created`);
 
       this.#eventSystem.registerEvent('DataSourceStatusUpdate', {
@@ -133,7 +128,7 @@ export class DataSourceSystem extends SystemPlugin {
         status: 'success',
       });
 
-      this.#sources[name] = { source: dataSource, initData, type, status: 'new' };
+      this.#sources[name] = { source: dataSource, datasourceParams, type, status: 'new' };
       this.#eventSystem.publishEvent(`DataSourceStatusUpdate`, {
         dataSource: name,
         status: 'new',
@@ -155,6 +150,7 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   #runDataSource(name) {
+    this.#logSystem.debug(`Executing DataSource '${name}'`);
     this.#sources[name].source
       .init()
       .then(isInited => {
@@ -182,22 +178,29 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   editDataSource(name, params) {
+    this.#logSystem.debug(
+      `Trying to edit DataSource '${name}' with new parameters: ${JSON.stringify(params)}`
+    );
     this.#sources[name].status = 'new';
     this.#removeDataSourceTokens(name);
-    const { original_otl } = params;
-    const processed_otl = this.#processQuerySting(name, original_otl);
-    this.#sources[name].initData = { ...this.#sources[name].initData, ...params };
-    this.#sources[name].source.editParams({ ...params, original_otl: processed_otl });
+    const { queryString } = params;
+    if (queryString) {
+      const processedString = this.#processQuerySting(name, queryString);
+      params.queryString = processedString;
+    }
+    this.#sources[name].datasourceParams = { ...this.#sources[name].datasourceParams, ...params };
+    this.#sources[name].source.editParams(params);
     this.#eventSystem.publishEvent(`DataSourceEdited`, {
       dataSource: name,
     });
     this.#runDataSource(name);
+    this.#logSystem.info(`DataSource '${name}' params were edited successfully`);
   }
 
   runDataSource(name) {
-    const { original_otl } = this.#sources[name].initData;
-    const processed_otl = this.#processQuerySting(name, original_otl);
-    this.#sources[name].source.editParams({ original_otl: processed_otl });
+    const { queryString } = this.#sources[name].datasourceParams;
+    const processedString = this.#processQuerySting(name, queryString);
+    this.#sources[name].source.editParams({ queryString: processedString });
     this.#runDataSource(name);
   }
 
@@ -213,6 +216,7 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   #removeDataSourceTokens(dataSourceName) {
+    this.#logSystem.debug(`Removing DataSource '${dataSourceName}' tokens`);
     for (let token in this.#tokens) {
       const index = this.#tokens[token].indexOf(dataSourceName);
       if (index !== -1) this.#tokens[token].splice(index, 1);
@@ -221,12 +225,17 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   #processQuerySting(dataSourceName, queryString) {
+    this.#logSystem.debug(`Processing DataSources '${dataSourceName}' queryString`);
     const regexp = /\$.*?\$/g;
     const tokensWithDollars = [...queryString.matchAll(regexp)].map(prop => prop[0]);
     const tokens = tokensWithDollars.map(prop => prop.replaceAll('$', ''));
+    this.#logSystem.debug(`Found tokens in queryString: ${JSON.stringify(tokens)}`);
     if (tokens.length > 0) {
       tokens.forEach(token => {
         const tokenValue = this.#storageSystem.tokenStorage.getRecord(token);
+        this.#logSystem.debug(
+          `Replacing token '${token}' with value '${tokenValue}' in queryString`
+        );
         if (!tokenValue) {
           queryString = queryString.replaceAll(`$${token}$`, '');
         } else {
@@ -252,6 +261,7 @@ export class DataSourceSystem extends SystemPlugin {
     this.#eventSystem.publishEvent(`DataSourceDeleted`, {
       dataSource: name,
     });
+    this.#logSystem.info(`Removing DataSource '${name}'`);
     delete this.#sources[name];
   }
 
