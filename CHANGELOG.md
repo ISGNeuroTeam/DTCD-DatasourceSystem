@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- version of core systems for adapters
+
 ### Changed
 
+- build process in order to make directory name with current version of pluing
 - unified system for all types of datasources
 
 ## [0.1.0]

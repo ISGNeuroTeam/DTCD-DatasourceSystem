@@ -5,7 +5,7 @@ import {
   EventSystemAdapter,
 } from '../../DTCD-SDK';
 // import { DataSource } from './libs/DataSource';
-import { pluginMeta } from '../package.json';
+import pluginMeta from './Plugin.Meta';
 
 export class DataSourceSystem extends SystemPlugin {
   #guid;
@@ -23,9 +23,9 @@ export class DataSourceSystem extends SystemPlugin {
   constructor(guid) {
     super();
     this.#guid = guid;
-    this.#logSystem = new LogSystemAdapter(guid, pluginMeta.name);
-    this.#storageSystem = new StorageSystemAdapter();
-    this.#eventSystem = new EventSystemAdapter(guid);
+    this.#logSystem = new LogSystemAdapter('0.4.0', guid, pluginMeta.name);
+    this.#storageSystem = new StorageSystemAdapter('0.4.0');
+    this.#eventSystem = new EventSystemAdapter('0.3.0', guid);
     this.#eventSystem.registerPluginInstance(this, []);
     this.#extensions = this.getExtensions(pluginMeta.name);
 
@@ -33,7 +33,7 @@ export class DataSourceSystem extends SystemPlugin {
     this.#tokens = {};
 
     this.#eventSystem.subscribe(
-      this.getGUID(this.getSystem('StorageSystem')),
+      this.#storageSystem.getGUID(),
       'TokenUpdate',
       guid,
       'processTokenUpdateEvent'
@@ -95,7 +95,8 @@ export class DataSourceSystem extends SystemPlugin {
       }
 
       if (this.#sources.hasOwnProperty(name)) {
-        this.#logSystem.error(`Datasource with name '${name} already exists!`);
+        this.#logSystem.error(`Datasource with name '${name}' already exists!`);
+        console.error(`Datasource with name '${name}' already exists!`);
         return;
       }
 
