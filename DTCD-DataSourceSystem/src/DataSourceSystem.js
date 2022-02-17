@@ -152,6 +152,7 @@ export class DataSourceSystem extends SystemPlugin {
 
   #runDataSource(name) {
     this.#logSystem.debug(`Executing DataSource '${name}'`);
+    this.#sources[name].status = 'new';
     this.#sources[name].source
       .init()
       .then(isInited => {
@@ -182,7 +183,6 @@ export class DataSourceSystem extends SystemPlugin {
     this.#logSystem.debug(
       `Trying to edit DataSource '${name}' with new parameters: ${JSON.stringify(params)}`
     );
-    this.#sources[name].status = 'new';
     this.#removeDataSourceTokens(name);
     const { queryString } = params;
     if (queryString) {
