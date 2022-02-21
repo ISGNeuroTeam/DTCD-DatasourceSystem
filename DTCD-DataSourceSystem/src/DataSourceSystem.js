@@ -23,9 +23,9 @@ export class DataSourceSystem extends SystemPlugin {
   constructor(guid) {
     super();
     this.#guid = guid;
-    this.#logSystem = new LogSystemAdapter('0.4.0', guid, pluginMeta.name);
-    this.#storageSystem = new StorageSystemAdapter('0.4.0');
-    this.#eventSystem = new EventSystemAdapter('0.3.0', guid);
+    this.#logSystem = new LogSystemAdapter('0.5.0', guid, pluginMeta.name);
+    this.#storageSystem = new StorageSystemAdapter('0.5.0');
+    this.#eventSystem = new EventSystemAdapter('0.4.0', guid);
     this.#eventSystem.registerPluginInstance(this, []);
     this.#extensions = this.getExtensions(pluginMeta.name);
 
