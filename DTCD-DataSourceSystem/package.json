@@ -1,14 +1,6 @@
 {
   "name": "dtcd-datasource-system",
-  "version": "0.1.0",
-  "pluginMeta": {
-    "type": "core",
-    "name": "DataSourceSystem",
-    "title": "Cистема источников данных",
-    "priority": 2.5,
-    "withDependencies": false,
-    "version": "0.1.0"
-  },
+  "version": "0.2.0",
   "description": "DTCD DataSource system plugin",
   "private": true,
   "homepage": "https://github.com/ISGNeuroTeam/DTCD-DatasourceSystem",
