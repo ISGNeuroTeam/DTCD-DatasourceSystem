@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - flag for datasources autorun while setting config
 - flag for token change datasource rerun
 - intervals for datasources
+- added oneShotRun method to invoke datasource one time
+
+### Changed
+
+- values of autorun and runOnTokenUpdate to true by default
 
 ## [0.2.0]
 

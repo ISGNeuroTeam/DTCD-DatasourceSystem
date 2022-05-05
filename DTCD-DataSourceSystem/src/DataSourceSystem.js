@@ -16,8 +16,8 @@ export class DataSourceSystem extends SystemPlugin {
   #storageSystem;
   #eventSystem;
 
-  #autorun = false;
-  #runOnTokenChange = false;
+  #autorun = true;
+  #runOnTokenChange = true;
 
   get autorun() {
     return this.#autorun;
@@ -74,6 +74,7 @@ export class DataSourceSystem extends SystemPlugin {
   }
 
   setPluginConfig(config = {}) {
+    this.resetSystem();
     if (config.hasOwnProperty('autorun')) this.#autorun = config.autorun;
 
     if (config.hasOwnProperty('runOnTokenChange')) this.#runOnTokenChange = config.runOnTokenChange;
@@ -122,9 +123,9 @@ export class DataSourceSystem extends SystemPlugin {
       )}`
     );
     try {
-      if (typeof type !== 'string' && typeof type !== 'string') {
+      if (typeof name !== 'string' && typeof type !== 'string') {
         this.#logSystem.error(
-          `DataSourceSystem.createDataSource invoked with not String params: type - "${type}", name - "${name}"`
+          `DataSourceSystem.createDataSource invoked with not String params: name - '${name}', type - '${type}'`
         );
         throw new Error('"type" and "name" arguments type must be string');
       }
@@ -188,6 +189,40 @@ export class DataSourceSystem extends SystemPlugin {
       if (this.#autorun) this.runDataSource(name);
 
       return true;
+    } catch (err) {
+      this.#logSystem.error(err);
+      throw new Error(err);
+    }
+  }
+
+  oneShotRun(type, datasourceParams) {
+    try {
+      if (typeof type !== 'string') {
+        this.#logSystem.error(
+          `DataSourceSystem.createDataSource invoked with not String params: type - '${type}'`
+        );
+        throw new Error('"type" arguments type must be string');
+      }
+      const { plugin: DataSourcePlugin } = this.#extensions.find(
+        ext => ext.plugin.getExtensionInfo().type.toLowerCase() === type.toLowerCase()
+      );
+
+      if (!DataSourcePlugin) {
+        this.#logSystem.error(`Couldn't find extension with type - "${type}"`);
+        throw new Error(`Cannot find "${type}" DataSource`);
+      }
+      this.#logSystem.debug(`Found extension plugin by type`);
+
+      // DATASOURCE-PLUGIN
+      const dataSource = new DataSourcePlugin(datasourceParams);
+
+      return dataSource.init().then(isInited => {
+        if (!isInited) {
+          this.#logSystem.error(`Couldn't init ExternalSource instance`);
+          throw new Error("Job isn't created");
+        }
+        return dataSource.getData();
+      });
     } catch (err) {
       this.#logSystem.error(err);
       throw new Error(err);
