@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0]
+
+### Added
+
+- flag for datasources autorun while setting config
+- flag for token change datasource rerun
+- intervals for datasources
+- added oneShotRun method to invoke datasource one time
+
+### Changed
+
+- values of autorun and runOnTokenUpdate to true by default
+
 ## [0.2.0]
 
 ### Added

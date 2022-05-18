@@ -10,11 +10,30 @@ import pluginMeta from './Plugin.Meta';
 export class DataSourceSystem extends SystemPlugin {
   #guid;
   #extensions = [];
+  #sources = {};
+  #tokens = {};
   #logSystem;
   #storageSystem;
   #eventSystem;
-  #sources;
-  #tokens;
+
+  #autorun = true;
+  #runOnTokenChange = true;
+
+  get autorun() {
+    return this.#autorun;
+  }
+
+  set autorun(value) {
+    this.#autorun = Boolean(value);
+  }
+
+  get runOnTokenChange() {
+    return this.#runOnTokenChange;
+  }
+
+  set runOnTokenChange(value) {
+    this.#runOnTokenChange = Boolean(value);
+  }
 
   static getRegistrationMeta() {
     return pluginMeta;
@@ -28,9 +47,6 @@ export class DataSourceSystem extends SystemPlugin {
     this.#eventSystem = new EventSystemAdapter('0.4.0', guid);
     this.#eventSystem.registerPluginInstance(this, []);
     this.#extensions = this.getExtensions(pluginMeta.name);
-
-    this.#sources = {};
-    this.#tokens = {};
 
     this.#eventSystem.subscribe(
       this.#storageSystem.getGUID(),
@@ -49,17 +65,28 @@ export class DataSourceSystem extends SystemPlugin {
   getPluginConfig() {
     const sources = {};
     for (let source in this.#sources) {
-      const { datasourceParams, type } = this.#sources[source];
+      const { datasourceParams, type, schedule } = this.#sources[source];
       sources[source] = { datasourceParams, type };
+      if (schedule) sources[source].schedule = schedule;
     }
-    return { sources };
+
+    return { sources, autorun: this.#autorun, runOnTokenChange: this.#runOnTokenChange };
   }
 
   setPluginConfig(config = {}) {
-    if (config.sources)
+    this.resetSystem();
+    if (config.hasOwnProperty('autorun')) this.#autorun = config.autorun;
+
+    if (config.hasOwnProperty('runOnTokenChange')) this.#runOnTokenChange = config.runOnTokenChange;
+
+    if (config.hasOwnProperty('sources'))
       for (let source in config.sources) {
-        const { datasourceParams } = config.sources[source];
-        this.createDataSource(source, config.sources[source].type, datasourceParams);
+        const { datasourceParams, type } = config.sources[source];
+        this.createDataSource(source, type, datasourceParams);
+        if (config.sources[source].hasOwnProperty('schedule')) {
+          const { interval, intervalUnits } = config.sources[source].schedule;
+          this.setDatasourceInterval(source, interval, intervalUnits);
+        }
       }
   }
 
@@ -67,7 +94,16 @@ export class DataSourceSystem extends SystemPlugin {
 
   setFormSettings() {}
 
-  beforeDelete() {}
+  resetSystem() {
+    for (let source in this.#sources) {
+      if (this.#sources[source].hasOwnProperty('schedule')) {
+        clearInterval(this.#sources[source].schedule.id);
+      }
+      this.#storageSystem.session.removeRecord(source);
+    }
+    this.#sources = {};
+    this.#tokens = {};
+  }
 
   #toCache(keyRecord, data) {
     if (!this.#storageSystem.session.hasRecord(keyRecord)) {
@@ -87,9 +123,9 @@ export class DataSourceSystem extends SystemPlugin {
       )}`
     );
     try {
-      if (typeof type !== 'string' && typeof type !== 'string') {
+      if (typeof name !== 'string' && typeof type !== 'string') {
         this.#logSystem.error(
-          `DataSourceSystem.createDataSource invoked with not String params: type - "${type}", name - "${name}"`
+          `DataSourceSystem.createDataSource invoked with not String params: name - '${name}', type - '${type}'`
         );
         throw new Error('"type" and "name" arguments type must be string');
       }
@@ -110,8 +146,17 @@ export class DataSourceSystem extends SystemPlugin {
       }
       this.#logSystem.debug(`Found extension plugin by type`);
 
+      let processedString = '';
+      if (datasourceParams.hasOwnProperty('queryString')) {
+        processedString = this.#processQuerySting(name, datasourceParams.queryString);
+      }
+
       // DATASOURCE-PLUGIN
-      const dataSource = new DataSourcePlugin(datasourceParams);
+      const dataSource = new DataSourcePlugin({
+        ...datasourceParams,
+        queryString: processedString,
+      });
+
       this.#logSystem.debug(`ExternalSource instance created`);
 
       this.#eventSystem.registerEvent('DataSourceStatusUpdate', {
@@ -141,9 +186,43 @@ export class DataSourceSystem extends SystemPlugin {
 
       this.#logSystem.debug(`ExternalSource instance inited`);
 
-      this.runDataSource(name);
+      if (this.#autorun) this.runDataSource(name);
 
       return true;
+    } catch (err) {
+      this.#logSystem.error(err);
+      throw new Error(err);
+    }
+  }
+
+  oneShotRun(type, datasourceParams) {
+    try {
+      if (typeof type !== 'string') {
+        this.#logSystem.error(
+          `DataSourceSystem.createDataSource invoked with not String params: type - '${type}'`
+        );
+        throw new Error('"type" arguments type must be string');
+      }
+      const { plugin: DataSourcePlugin } = this.#extensions.find(
+        ext => ext.plugin.getExtensionInfo().type.toLowerCase() === type.toLowerCase()
+      );
+
+      if (!DataSourcePlugin) {
+        this.#logSystem.error(`Couldn't find extension with type - "${type}"`);
+        throw new Error(`Cannot find "${type}" DataSource`);
+      }
+      this.#logSystem.debug(`Found extension plugin by type`);
+
+      // DATASOURCE-PLUGIN
+      const dataSource = new DataSourcePlugin(datasourceParams);
+
+      return dataSource.init().then(isInited => {
+        if (!isInited) {
+          this.#logSystem.error(`Couldn't init ExternalSource instance`);
+          throw new Error("Job isn't created");
+        }
+        return dataSource.getData();
+      });
     } catch (err) {
       this.#logSystem.error(err);
       throw new Error(err);
@@ -185,12 +264,12 @@ export class DataSourceSystem extends SystemPlugin {
     );
     this.#removeDataSourceTokens(name);
     const { queryString } = params;
+    let processedString = '';
     if (queryString) {
-      const processedString = this.#processQuerySting(name, queryString);
-      params.queryString = processedString;
+      processedString = this.#processQuerySting(name, queryString);
     }
     this.#sources[name].datasourceParams = { ...this.#sources[name].datasourceParams, ...params };
-    this.#sources[name].source.editParams(params);
+    this.#sources[name].source.editParams({ ...params, queryString: processedString });
     this.#eventSystem.publishEvent(`DataSourceEdited`, {
       dataSource: name,
     });
@@ -205,8 +284,77 @@ export class DataSourceSystem extends SystemPlugin {
     this.#runDataSource(name);
   }
 
+  setDatasourceInterval(name, interval, intervalUnits) {
+    if (!this.#sources.hasOwnProperty(name)) {
+      this.#logSystem.error(`Datasource '${name}' doesn't exist!`);
+      return false;
+    }
+
+    if (typeof interval !== 'number') {
+      this.#logSystem.error(`Interval value of datasource must be number!`);
+      return false;
+    }
+
+    if (!['s', 'm', 'h'].includes(intervalUnits)) {
+      this.#logSystem.error(`Interval units value must be string and be one of: 's', 'm', 'h'!`);
+      return false;
+    }
+
+    if (this.#sources[name].hasOwnProperty('schedule')) {
+      this.#logSystem.debug(`Removing previous schedule for datasource '${name}'`);
+      clearInterval(this.#sources[name].schedule.id);
+    }
+
+    const millis = this.#getMilliseconds(interval, intervalUnits);
+
+    const intervalID = setInterval(() => {
+      this.runDataSource(name);
+    }, millis);
+
+    this.#sources[name].schedule = {
+      id: intervalID,
+      interval,
+      intervalUnits,
+    };
+
+    return true;
+  }
+
+  removeDatasourceInterval(name) {
+    if (!this.#sources.hasOwnProperty(name)) {
+      this.#logSystem.error(`Datasource '${name}' doesn't exist!`);
+      return false;
+    }
+
+    if (this.#sources[name].hasOwnProperty('schedule')) {
+      this.#logSystem.debug(`Removing previous schedule for datasource '${name}'`);
+      clearInterval(this.#sources[name].schedule.id);
+      delete this.#sources[name].schedule;
+      return true;
+    }
+
+    this.#logSystem.warn(`Datasource '${name}' doesn't have any schedule!`);
+    return false;
+  }
+
+  #getMilliseconds(interval, intervalUnits) {
+    switch (intervalUnits) {
+      case 's':
+        break;
+
+      case 'm':
+        interval = interval * 60;
+        break;
+
+      case 'h':
+        interval = interval * 3600;
+        break;
+    }
+    return interval * 1000;
+  }
+
   processTokenUpdateEvent(eventData) {
-    if (Object.keys(this.#sources).length !== 0) {
+    if (this.#runOnTokenChange && Object.keys(this.#sources).length !== 0) {
       const { token } = eventData;
       if (Array.isArray(this.#tokens[token])) {
         this.#tokens[token].forEach(dataSourceName => {
@@ -237,16 +385,14 @@ export class DataSourceSystem extends SystemPlugin {
         this.#logSystem.debug(
           `Replacing token '${token}' with value '${tokenValue}' in queryString`
         );
-        if (!tokenValue) {
-          queryString = queryString.replaceAll(`$${token}$`, '');
+        if (!tokenValue) queryString = queryString.replaceAll(`$${token}$`, '');
+        else queryString = queryString.replaceAll(`$${token}$`, tokenValue);
+
+        if (Array.isArray(this.#tokens[token]) && !this.#tokens[token].includes(dataSourceName)) {
+          this.#tokens[token].push(dataSourceName);
         } else {
-          queryString = queryString.replaceAll(`$${token}$`, tokenValue);
-          if (Array.isArray(this.#tokens[token]) && !this.#tokens[token].includes(dataSourceName)) {
-            this.#tokens[token].push(dataSourceName);
-          } else {
-            this.#tokens[token] = [];
-            this.#tokens[token].push(dataSourceName);
-          }
+          this.#tokens[token] = [];
+          this.#tokens[token].push(dataSourceName);
         }
       });
     }
