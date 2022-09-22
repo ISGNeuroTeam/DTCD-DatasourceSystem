@@ -77,7 +77,7 @@ export class DataSourceSystem extends SystemPlugin {
     this.resetSystem();
     if (config.hasOwnProperty('autorun')) this.#autorun = config.autorun;
 
-    if (config.hasOwnProperty('runOnTokenChange')) this.#runOnTokenChange = config.runOnTokenChange;
+    if (config.hasOwnProperty('runOnTokenChange')) this.runOnTokenChange = config.runOnTokenChange;
 
     if (config.hasOwnProperty('sources'))
       for (let source in config.sources) {
@@ -185,8 +185,7 @@ export class DataSourceSystem extends SystemPlugin {
       });
 
       this.#logSystem.debug(`ExternalSource instance inited`);
-
-      if (this.#autorun) this.runDataSource(name);
+      if (this.autorun) this.runDataSource(name);
 
       return true;
     } catch (err) {
