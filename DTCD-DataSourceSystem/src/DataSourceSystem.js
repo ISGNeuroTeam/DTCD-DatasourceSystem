@@ -105,9 +105,10 @@ export class DataSourceSystem extends SystemPlugin {
     this.#tokens = {};
   }
 
-  #toCache(keyRecord, data) {
+  #toCache(keyRecord, data, schema) {
     if (!this.#storageSystem.session.hasRecord(keyRecord)) {
       this.#storageSystem.session.addRecord(keyRecord, data);
+      this.#storageSystem.session.addRecord(`${keyRecord}_SCHEMA`, schema);
       this.#logSystem.debug(`Added record to StorageSystem for ExternalSource`);
     } else this.#storageSystem.session.putRecord(keyRecord, data);
   }
@@ -243,10 +244,18 @@ export class DataSourceSystem extends SystemPlugin {
           this.#logSystem.error(`Couldn't init ExternalSource instance`);
           throw new Error("Job isn't created");
         }
-        return this.#sources[name].source.getData();
+        return {
+          data: this.#sources[name].source.getData(),
+          schema: this.#sources[name].source.getSchema(),
+        };
       })
-      .then(data => {
-        this.#toCache(name, data);
+      .then(async source => {
+        let { data, schema } = source;
+
+        data = await data;
+        schema = await schema;
+
+        this.#toCache(name, data, schema);
 
         this.#sources[name].status = 'success';
 
