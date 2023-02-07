@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - saving datasource schema to `<dsName>_SCHEMA` storage session module
+- add support otlrw plugin
 
 ## [0.4.0]
 
