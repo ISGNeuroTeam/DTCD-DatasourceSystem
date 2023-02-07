@@ -100,6 +100,7 @@ export class DataSourceSystem extends SystemPlugin {
         clearInterval(this.#sources[source].schedule.id);
       }
       this.#storageSystem.session.removeRecord(source);
+      this.#storageSystem.session.removeRecord(`${source}_SCHEMA`);
     }
     this.#sources = {};
     this.#tokens = {};
@@ -110,7 +111,11 @@ export class DataSourceSystem extends SystemPlugin {
       this.#storageSystem.session.addRecord(keyRecord, data);
       this.#storageSystem.session.addRecord(`${keyRecord}_SCHEMA`, schema);
       this.#logSystem.debug(`Added record to StorageSystem for ExternalSource`);
-    } else this.#storageSystem.session.putRecord(keyRecord, data);
+    } else {
+      this.#storageSystem.session.putRecord(keyRecord, data);
+      this.#storageSystem.session.putRecord(`${keyRecord}_SCHEMA`, schema);
+
+    }
   }
 
   get dataSourceTypes() {
