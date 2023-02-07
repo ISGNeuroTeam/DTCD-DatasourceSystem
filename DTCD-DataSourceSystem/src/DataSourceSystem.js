@@ -147,15 +147,21 @@ export class DataSourceSystem extends SystemPlugin {
       }
       this.#logSystem.debug(`Found extension plugin by type`);
 
-      let processedString = '';
+      const queryStrings = {}
+
       if (datasourceParams.hasOwnProperty('queryString')) {
-        processedString = this.#processQuerySting(name, datasourceParams.queryString);
+        queryStrings.processedString = this.#processQuerySting(name, datasourceParams.queryString);
       }
+
+      if (datasourceParams.hasOwnProperty('queryWriteString')) {
+        queryStrings.queryWriteString = this.#processQuerySting(name, datasourceParams.queryWriteString);
+      }
+
 
       // DATASOURCE-PLUGIN
       const dataSource = new DataSourcePlugin({
         ...datasourceParams,
-        queryString: processedString,
+        ...queryStrings
       });
 
       this.#logSystem.debug(`ExternalSource instance created`);
@@ -175,11 +181,47 @@ export class DataSourceSystem extends SystemPlugin {
         status: 'success',
       });
 
-      this.#sources[name] = { source: dataSource, datasourceParams, type, status: 'new' };
+
+      this.#sources[name] = {
+        source: dataSource,
+        datasourceParams,
+        type,
+        status: 'new',
+
+      };
+
       this.#eventSystem.publishEvent(`DataSourceStatusUpdate`, {
         dataSource: name,
         status: 'new',
       });
+
+      if (type === 'otlrw') {
+
+        this.#eventSystem.registerEvent('DataSourceWriteStatusUpdate', {
+          dataSource: name,
+          status: 'new',
+        });
+        this.#eventSystem.registerEvent('DataSourceWriteStatusUpdate', {
+          dataSource: name,
+          status: 'failed',
+        });
+
+        this.#eventSystem.registerEvent('DataSourceWriteStatusUpdate', {
+          dataSource: name,
+          status: 'success',
+        });
+
+        this.#sources[name].writeStatus = 'new';
+
+        this.#eventSystem.publishEvent(`DataSourceWriteStatusUpdate`, {
+          dataSource: name,
+          status: 'new',
+        });
+      }
+
+
+
+
 
       this.#eventSystem.publishEvent(`DataSourceCreated`, {
         dataSource: name,
@@ -266,18 +308,65 @@ export class DataSourceSystem extends SystemPlugin {
       });
   }
 
+  #runDataSourceWrite(name) {
+    this.#logSystem.debug(`Executing DataSource write '${name}'`);
+    this.#sources[name].writeStatus = 'new';
+    this.#sources[name].source
+      .initWrite()
+      .then(isInited => {
+        if (!isInited) {
+          this.#sources[name].writeStatus = 'failed';
+          this.#eventSystem.publishEvent(`DataSourceWriteStatusUpdate`, {
+            dataSource: name,
+            status: 'failed',
+          });
+          this.#logSystem.error(`Couldn't initWrite ExternalSource instance`);
+          throw new Error("Job isn't created");
+        }
+        return {
+          data: this.#sources[name].source.getData(),
+          schema: this.#sources[name].source.getSchema(),
+        };
+      })
+      .then(async source => {
+        let { data, schema } = source;
+
+        data = await data;
+        schema = await schema;
+
+        this.#toCache(name, data, schema);
+
+        this.#sources[name].writeStatus = 'success';
+
+        this.#eventSystem.publishEvent(`DataSourceWriteStatusUpdate`, {
+          dataSource: name,
+          status: 'success',
+        });
+      });
+  }
+
   editDataSource(name, params) {
     this.#logSystem.debug(
       `Trying to edit DataSource '${name}' with new parameters: ${JSON.stringify(params)}`
     );
     this.#removeDataSourceTokens(name);
-    const { queryString } = params;
-    let processedString = '';
-    if (queryString) {
-      processedString = this.#processQuerySting(name, queryString);
+
+    const queryStrings = {queryString: params.queryString}
+
+    if (params.queryWriteString) {
+      queryStrings.queryWriteString = params.queryWriteString
+    }
+
+    const processedStrings = {}
+
+    if (queryStrings.queryString) {
+      processedStrings.queryString = this.#processQuerySting(name, queryStrings.queryString);
+    }
+    if (queryStrings.queryWriteString) {
+      processedStrings.queryWriteString = this.#processQuerySting(name, queryStrings.queryWriteString);
     }
     this.#sources[name].datasourceParams = { ...this.#sources[name].datasourceParams, ...params };
-    this.#sources[name].source.editParams({ ...params, queryString: processedString });
+    this.#sources[name].source.editParams({ ...params, ...processedStrings });
     this.#eventSystem.publishEvent(`DataSourceEdited`, {
       dataSource: name,
     });
@@ -290,6 +379,13 @@ export class DataSourceSystem extends SystemPlugin {
     const processedString = this.#processQuerySting(name, queryString);
     this.#sources[name].source.editParams({ queryString: processedString });
     this.#runDataSource(name);
+  }
+
+  runDataSourceWrite(name, dataset) {
+    const { queryWriteString } = this.#sources[name].datasourceParams;
+    const processedString = this.#processQuerySting(name, queryWriteString);
+    this.#sources[name].source.editParams({ queryWriteString: processedString, dataset });
+    this.#runDataSourceWrite(name);
   }
 
   setDatasourceInterval(name, interval, intervalUnits) {
