@@ -334,12 +334,6 @@ export class DataSourceSystem extends SystemPlugin {
         };
       })
       .then(async source => {
-        let { data, schema } = source;
-
-        data = await data;
-        schema = await schema;
-
-        this.#toCache(name, data, schema);
 
         this.#sources[name].writeStatus = 'success';
 
