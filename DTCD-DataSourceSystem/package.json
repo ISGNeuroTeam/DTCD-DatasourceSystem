@@ -1,6 +1,6 @@
 {
   "name": "dtcd-datasource-system",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "DTCD DataSource system plugin",
   "private": true,
   "homepage": "https://github.com/ISGNeuroTeam/DTCD-DatasourceSystem",
